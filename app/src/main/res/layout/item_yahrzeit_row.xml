@@ -1,0 +1,62 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:id="@+id/yahrzeit_row_root"
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content"
+    android:orientation="horizontal"
+    android:layout_marginStart="-2dp"
+    android:padding="2dp">
+
+    <EditText
+        android:id="@+id/nameField"
+        android:layout_width="0dp"
+        android:layout_height="wrap_content"
+        android:layout_weight="1"
+        android:minHeight="32dp"
+        android:gravity="center_vertical"
+        android:textSize="14sp"
+        android:hint="Name"
+        android:inputType="textPersonName"
+        android:singleLine="true"
+        android:padding="0dp"
+        android:background="@android:color/transparent" />
+
+    <EditText
+        android:id="@+id/diedDate"
+        android:layout_width="0dp"
+        android:layout_height="wrap_content"
+        android:layout_weight="1"
+        android:minHeight="32dp"
+        android:gravity="center_vertical"
+        android:textSize="14sp"
+        android:hint="MM/DD/YYYY"
+        android:inputType="number"
+        android:digits="0123456789/"
+        android:maxLength="10"
+        android:minEms="10"
+        android:maxEms="10"
+        android:singleLine="true"
+        android:padding="0dp"
+        android:background="@android:color/transparent" />
+
+    <TextView
+        android:id="@+id/hebrewDate"
+        android:layout_width="0dp"
+        android:layout_height="wrap_content"
+        android:layout_weight="1"
+        android:textSize="14sp"
+        android:maxLines="1"
+        android:ellipsize="end"
+        android:gravity="left"
+        android:padding="0dp" />
+
+    <TextView
+        android:id="@+id/inYear"
+        android:layout_width="0dp"
+        android:layout_height="wrap_content"
+        android:layout_weight="1"
+        android:textSize="14sp"
+        android:maxLines="1"
+        android:padding="0dp" />
+
+</LinearLayout>

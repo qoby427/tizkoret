@@ -14,12 +14,14 @@ import android.content.Context;
 import android.content.Intent;
 import android.content.pm.PackageManager;
 import android.database.Cursor;
+import android.graphics.Rect;
 import android.location.Location;
 import android.net.Uri;
 import android.os.Build;
 import android.os.Bundle;
 import android.os.Looper;
 import android.provider.CalendarContract;
+import android.view.View;
 import android.widget.TextView;
 
 import com.google.android.gms.location.LocationCallback;
@@ -29,7 +31,9 @@ import com.google.android.material.button.MaterialButton;
 import com.google.android.gms.location.FusedLocationProviderClient;
 import com.google.android.gms.location.LocationServices;
 import com.kosherjava.zmanim.ZmanimCalendar;
+import com.kosherjava.zmanim.hebrewcalendar.HebrewDateFormatter;
 import com.kosherjava.zmanim.util.GeoLocation;
+import com.kosherjava.zmanim.hebrewcalendar.JewishCalendar;
 
 import java.text.SimpleDateFormat;
 import java.time.DayOfWeek;
@@ -38,8 +42,10 @@ import java.time.LocalDate;
 import java.time.ZoneId;
 import java.time.ZonedDateTime;
 import java.time.temporal.TemporalAdjusters;
+import java.util.ArrayList;
 import java.util.Calendar;
 import java.util.Date;
+import java.util.List;
 import java.util.Locale;
 import java.util.TimeZone;
 
@@ -51,6 +57,9 @@ public class MainActivity extends MessageActivity {
     private RecyclerView yahrzeitList;
     private YahrzeitAdapter yahrzeitAdapter;
     private String timeZoneId;
+    private List<YahrzeitEntry> list = new ArrayList<>();
+    private boolean wasKeyboardVisible = false;
+
     public interface LocationListener {
         void onLocationAvailable(double latitude, double longitude);
     }
@@ -67,12 +76,17 @@ public class MainActivity extends MessageActivity {
         shabbatToggle = findViewById(R.id.shabbatToggleButton);
         yahrzeitList = findViewById(R.id.yahrzeitList);
 
+        TextView headerInYear = findViewById(R.id.headerInYear);
+        int currentYear = Calendar.getInstance().get(Calendar.YEAR);
+        headerInYear.setText("In " + currentYear);
+
         LocationHelper.getAccurateLocation(this, new LocationHelper.LocationListener() {
             @Override
             public void onLocationAvailable(double latitude, double longitude) {
                 UserSettings.setLatitude(MainActivity.this, latitude);
                 UserSettings.setLongitude(MainActivity.this, longitude);
             }
+
             @Override
             public void onLocationUnavailable() {
             }
@@ -91,9 +105,16 @@ public class MainActivity extends MessageActivity {
         // -----------------------------
         //  Yahrzeit table
         // -----------------------------
-        yahrzeitAdapter = new YahrzeitAdapter(this);
+        yahrzeitList = findViewById(R.id.yahrzeitList);
         yahrzeitList.setLayoutManager(new LinearLayoutManager(this));
+        yahrzeitAdapter = new YahrzeitAdapter(this, list, entry -> {
+            updateHebrewAndInYear(entry);
+            yahrzeitAdapter.notifyDataSetChanged();
+        });
         yahrzeitList.setAdapter(yahrzeitAdapter);
+
+        List<YahrzeitEntry> saved = UserSettings.loadYahrzeitList(this);
+        yahrzeitAdapter.setEntries(saved);
 
         findViewById(R.id.addYahrzeitButton).setOnClickListener(v -> {
             yahrzeitAdapter.addEmptyRow();
@@ -119,8 +140,8 @@ public class MainActivity extends MessageActivity {
         ShabbatWorker.schedule(this);
 
         if (BuildConfig.DEBUG) {
-            UserSettings.setShabbatAlarmEnabled(this, false);
-            updateShabbatUI(false);
+            //UserSettings.setShabbatAlarmEnabled(this, false);
+            //updateShabbatUI(false);
             //scheduleDebugAlarm();
         }
     }
@@ -201,11 +222,18 @@ public class MainActivity extends MessageActivity {
         boolean enabled = UserSettings.isShabbatAlarmEnabled(this);
         UserSettings.setShabbatAlarmEnabled(this, !enabled);
         updateShabbatUI(!enabled);
-        if(!enabled) {
+        if (!enabled) {
             showQuestion("Add Shabbat Times",
-                    "Would you like to add Shabbat times for next Friday to your calendar",
+                    "Would you like to add Shabbat times for next Friday to your calendar?",
                     () -> {
                         addNextFridayShabbatEvents();
+                    });
+        }
+        else {
+            showQuestion("Add Shabbat Times",
+                    "Would you like to remove Shabbat alarm?",
+                    () -> {
+                        cancelShabbatAlarm();
                     });
         }
     }
@@ -217,6 +245,7 @@ public class MainActivity extends MessageActivity {
         }
         return null;
     }
+
     private void requestAccurateLocation(LocationListener callback) {
         FusedLocationProviderClient fused =
                 LocationServices.getFusedLocationProviderClient(this);
@@ -257,6 +286,7 @@ public class MainActivity extends MessageActivity {
                 Looper.getMainLooper()
         );
     }
+
     private void saveAccurateLocation(LocationListener listener) {
         FusedLocationProviderClient fused = LocationServices.getFusedLocationProviderClient(this);
 
@@ -336,6 +366,7 @@ public class MainActivity extends MessageActivity {
         insertShabbatEvent(candleLightingMillis);
         scheduleShabbatAlarm(candleLightingMillis);
     }
+
     private void insertShabbatEvent(long candleLightingMillis) {
         long calendarId = getGoogleCalendarId();
         if (calendarId == -1)
@@ -376,6 +407,7 @@ public class MainActivity extends MessageActivity {
 
         cr.insert(CalendarContract.Reminders.CONTENT_URI, reminder);
     }
+
     private long getGoogleCalendarId() {
         ContentResolver cr = getContentResolver();
 
@@ -440,11 +472,12 @@ public class MainActivity extends MessageActivity {
         cur.close();
         return calendarId;
     }
+
     private long toLocalMillis(long utcMillis) {
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
             ZoneId zone = ZoneId.systemDefault();
             Instant instant = Instant.ofEpochMilli(utcMillis);
-            ZonedDateTime local =    instant.atZone(zone);
+            ZonedDateTime local = instant.atZone(zone);
 
             return local.toInstant().toEpochMilli();
         }
@@ -480,6 +513,7 @@ public class MainActivity extends MessageActivity {
             showMessage("Cannot schedule exact alarms. Enable permission in system settings.", false);
         }
     }
+
     private void cancelShabbatAlarm() {
         AlarmManager am = (AlarmManager) getSystemService(Context.ALARM_SERVICE);
 
@@ -498,6 +532,7 @@ public class MainActivity extends MessageActivity {
         Intent serviceIntent = new Intent(this, ShabbatAlarmService.class);
         stopService(serviceIntent);
     }
+
     private boolean canScheduleExactAlarms() {
         AlarmManager am = (AlarmManager) getSystemService(Context.ALARM_SERVICE);
 
@@ -507,6 +542,7 @@ public class MainActivity extends MessageActivity {
 
         return true; // pre-Android 12 always allowed
     }
+
     private boolean eventAlreadyExists(long calendarId, long startUtc, String title) {
         ContentResolver cr = getContentResolver();
 
@@ -567,72 +603,68 @@ public class MainActivity extends MessageActivity {
 
         showMessage("Debug alarm scheduled for 10 sec from now", false);
     }
-/*
-    private void getCurrentLocation() {
-        FusedLocationProviderClient fusedLocationClient =
-                LocationServices.getFusedLocationProviderClient(this);
 
-        fusedLocationClient.getLastLocation()
-                .addOnSuccessListener(location -> {
-                    if (location != null) {
-                        double lat = location.getLatitude();
-                        double lon = location.getLongitude();
-                        getTimeZoneFromAPI(lat, lon);
-                    }
-                });
-    }
-    private void getTimeZoneFromAPI(double lat, double lon) {
-        long timestamp = System.currentTimeMillis() / 1000;
-
-        String url = "https://maps.googleapis.com/maps/api/timezone/json?location="
-                + lat + "," + lon
-                + "&timestamp=" + timestamp
-                + "&key=YOUR_API_KEY";
-
-        new Thread(() -> {
-            try {
-                URL apiUrl = new URL(url);
-                HttpURLConnection conn = (HttpURLConnection) apiUrl.openConnection();
-                conn.setRequestMethod("GET");
-
-                BufferedReader reader = new BufferedReader(
-                        new InputStreamReader(conn.getInputStream())
-                );
-
-                StringBuilder result = new StringBuilder();
-                String line;
-
-                while ((line = reader.readLine()) != null) {
-                    result.append(line);
-                }
-
-                reader.close();
-
-                JSONObject json = new JSONObject(result.toString());
-                timeZoneId = json.getString("timeZoneId");
-            } catch (Exception e) {
-                e.printStackTrace();
-            }
-        }).start();
-    }
-    private void insertCalendarEvent(String timeZoneId) {
-        long startMillis = System.currentTimeMillis() + 3600000; // 1 hour from now
-        long endMillis = startMillis + 3600000; // 1 hour duration
-
-        ContentValues values = new ContentValues();
-        values.put(CalendarContract.Events.DTSTART, startMillis);
-        values.put(CalendarContract.Events.DTEND, endMillis);
-        values.put(CalendarContract.Events.TITLE, "Shabbat Alarm");
-        values.put(CalendarContract.Events.DESCRIPTION, "Auto-created event");
-        values.put(CalendarContract.Events.CALENDAR_ID, 1);
-        values.put(CalendarContract.Events.EVENT_TIMEZONE, timeZoneId);
-
-        Uri uri = getContentResolver().insert(CalendarContract.Events.CONTENT_URI, values);
-
-        if (uri != null) {
-            showMessage("Event added with timezone: " + timeZoneId, true);
+    private void updateHebrewAndInYear(YahrzeitEntry entry) {
+        if (entry.diedDate == null) {
+            entry.hebrewDate = "";
+            entry.inYear = "";
+            yahrzeitAdapter.notifyDataSetChanged();
+            return;
         }
-    }
 
- */
+        // Convert civil date → Hebrew date
+        Calendar cal = Calendar.getInstance();
+        cal.setTime(entry.diedDate);
+
+        JewishCalendar jc = new JewishCalendar();
+        jc.setDate(cal);
+
+        // Hebrew date string (full Hebrew format)
+        HebrewDateFormatter formatter = new HebrewDateFormatter();
+        formatter.setHebrewFormat(true);
+        entry.hebrewDate = formatter.format(jc);
+
+        // Extract Hebrew day/month/year
+        int hDay = jc.getJewishDayOfMonth();
+        int hMonth = jc.getJewishMonth();
+
+        // Compute Gregorian date of this Hebrew date in the current civil year
+        int currentYear = Calendar.getInstance().get(Calendar.YEAR);
+
+        JewishCalendar jc2 = new JewishCalendar();
+        jc2.setJewishDate(currentYear, hMonth, hDay);
+
+        Date greg = jc2.getGregorianCalendar().getTime();
+        entry.inYear = new SimpleDateFormat("MMM d", Locale.getDefault()).format(greg);
+
+        yahrzeitAdapter.notifyDataSetChanged();
+    }
+    private void setupKeyboardListener(View root) {
+        root.getViewTreeObserver().addOnGlobalLayoutListener(() -> {
+            Rect r = new Rect();
+            root.getWindowVisibleDisplayFrame(r);
+
+            int screenHeight = root.getRootView().getHeight();
+            int keypadHeight = screenHeight - r.bottom;
+
+            boolean isKeyboardNowVisible = keypadHeight > screenHeight * 0.15;
+
+            if (!isKeyboardNowVisible && wasKeyboardVisible) {
+                onKeyboardHidden();
+            }
+
+            wasKeyboardVisible = isKeyboardNowVisible;
+        });
+    }
+    private void onKeyboardHidden() {
+        for (YahrzeitEntry entry : yahrzeitAdapter.getEntries()) {
+            if (entry.diedDate != null) {
+                entry.hebrewDate = HebrewUtils.toHebrewDate(entry.diedDate);
+                entry.inYear = HebrewUtils.computeInYear(entry.diedDate);
+            }
+        }
+
+        UserSettings.saveYahrzeitList(this, yahrzeitAdapter.getEntries());
+        yahrzeitAdapter.notifyDataSetChanged();
+    }
 }

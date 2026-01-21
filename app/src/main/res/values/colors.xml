@@ -7,7 +7,6 @@
     <color name="black">#FF000000</color>
     <color name="white">#FFFFFFFF</color>
     <color name="selectedRowBackground">#FFE8F0FF</color>
-    <color name="ic_launcher_background">#BEDCF5</color>
     <color name="text_on_blue">#1A2A3A</color>
     <color name="md_theme_primary">#6750A4</color>
     <color name="md_theme_onPrimary">#000000</color>
