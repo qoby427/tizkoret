@@ -11,7 +11,7 @@
         android:id="@+id/titleMain"
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
-        android:text="Tizkoret"
+        android:text="Tizcóret"
         android:textSize="28sp"
         android:textStyle="bold"
         android:paddingBottom="4dp"/>
@@ -24,7 +24,7 @@
         android:textSize="16sp"
         android:paddingBottom="16dp"/>
 
-    <!-- Shabbat Frame -->
+    <!-- Shabbat Frame (fixed) -->
     <androidx.cardview.widget.CardView
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
@@ -71,93 +71,163 @@
         </LinearLayout>
     </androidx.cardview.widget.CardView>
 
-    <!-- Yahrzeit Frame -->
-    <androidx.cardview.widget.CardView
+    <!-- Yahrzeit Scrollable Section -->
+    <ScrollView
         android:layout_width="match_parent"
         android:layout_height="0dp"
         android:layout_weight="1"
+        android:fillViewport="true">
+
+        <androidx.cardview.widget.CardView
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            app:cardElevation="4dp"
+            app:cardUseCompatPadding="true">
+
+            <LinearLayout
+                android:orientation="vertical"
+                android:padding="16dp"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content">
+
+                <!-- Yahrzeit Title -->
+                <TextView
+                    android:id="@+id/yahrzeitTitle"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="Yahrzeit"
+                    android:textSize="20sp"
+                    android:textStyle="bold"
+                    android:paddingBottom="12dp"/>
+
+                <!-- Header row -->
+                <LinearLayout
+                    android:id="@+id/yahrzeitHeader"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:orientation="horizontal"
+                    android:paddingBottom="8dp">
+
+                    <TextView
+                        android:layout_width="0dp"
+                        android:layout_height="wrap_content"
+                        android:layout_weight="1"
+                        android:text="Name"
+                        android:textStyle="bold"
+                        android:textSize="14sp"/>
+
+                    <TextView
+                        android:layout_width="0dp"
+                        android:layout_height="wrap_content"
+                        android:layout_weight="1"
+                        android:text="Passed"
+                        android:textStyle="bold"
+                        android:textSize="14sp"/>
+
+                    <TextView
+                        android:layout_width="0dp"
+                        android:layout_height="wrap_content"
+                        android:layout_weight="1"
+                        android:text="Hebrew"
+                        android:textStyle="bold"
+                        android:textSize="14sp"/>
+
+                    <TextView
+                        android:id="@+id/headerInYear"
+                        android:layout_width="0dp"
+                        android:layout_height="wrap_content"
+                        android:layout_weight="1"
+                        android:text="In Year"
+                        android:textStyle="bold"
+                        android:textSize="14sp"/>
+                </LinearLayout>
+
+                <!-- RecyclerView -->
+                <androidx.recyclerview.widget.RecyclerView
+                    android:id="@+id/yahrzeitList"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:nestedScrollingEnabled="false"
+                    android:scrollbars="vertical"/>
+
+                <!-- Buttons -->
+                <LinearLayout
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:orientation="horizontal"
+                    android:layout_marginTop="12dp">
+
+                    <com.google.android.material.button.MaterialButton
+                        android:id="@+id/addYahrzeitButton"
+                        android:layout_width="0dp"
+                        android:layout_height="wrap_content"
+                        android:layout_weight="1"
+                        android:text="Add Yahrzeit"/>
+
+                    <View
+                        android:layout_width="8dp"
+                        android:layout_height="0dp" />
+
+                    <com.google.android.material.button.MaterialButton
+                        android:id="@+id/updateCalendarButton"
+                        android:layout_width="0dp"
+                        android:layout_height="wrap_content"
+                        android:layout_weight="1"
+                        android:text="Update to Calendar"/>
+                </LinearLayout>
+
+            </LinearLayout>
+        </androidx.cardview.widget.CardView>
+    </ScrollView>
+
+    <!-- Bottom Panel (fixed) -->
+    <androidx.cardview.widget.CardView
+        android:id="@+id/bottomPanel"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="12dp"
         app:cardElevation="4dp"
         app:cardUseCompatPadding="true">
 
         <LinearLayout
-            android:orientation="vertical"
-            android:padding="16dp"
+            android:id="@+id/bottomButtonRow"
             android:layout_width="match_parent"
-            android:layout_height="match_parent">
-
-            <!-- Yahrzeit Title -->
-            <TextView
-                android:id="@+id/yahrzeitTitle"
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:text="Yahrzeit"
-                android:textSize="20sp"
-                android:textStyle="bold"
-                android:paddingBottom="12dp"/>
-
-            <!-- Header row (FIXED, NOT SCROLLING) -->
-            <LinearLayout
-                android:id="@+id/yahrzeitHeader"
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:orientation="horizontal"
-                android:paddingBottom="8dp">
-
-                <TextView
-                    android:layout_width="0dp"
-                    android:layout_height="wrap_content"
-                    android:layout_weight="1"
-                    android:text="Name"
-                    android:textStyle="bold"
-                    android:textSize="14sp"/>
-
-                <TextView
-                    android:layout_width="0dp"
-                    android:layout_height="wrap_content"
-                    android:layout_weight="1"
-                    android:text="Passed"
-                    android:textStyle="bold"
-                    android:textSize="14sp"/>
-
-                <TextView
-                    android:layout_width="0dp"
-                    android:layout_height="wrap_content"
-                    android:layout_weight="1"
-                    android:text="Hebrew"
-                    android:textStyle="bold"
-                    android:textSize="14sp"/>
-
-                <TextView
-                    android:id="@+id/headerInYear"
-                    android:layout_width="0dp"
-                    android:layout_height="wrap_content"
-                    android:layout_weight="1"
-                    android:text="In Year"
-                    android:textStyle="bold"
-                    android:textSize="14sp"/>
-            </LinearLayout>
-
-            <!-- RecyclerView -->
-            <androidx.recyclerview.widget.RecyclerView
-                android:id="@+id/yahrzeitList"
-                android:layout_width="match_parent"
-                android:layout_height="0dp"
-                android:layout_weight="1"
-                android:scrollbars="vertical"/>
+            android:layout_height="wrap_content"
+            android:orientation="horizontal"
+            android:gravity="center"
+            android:paddingTop="12dp"
+            android:paddingBottom="12dp"
+            android:layout_marginStart="8dp"
+            android:layout_marginEnd="8dp">
 
             <com.google.android.material.button.MaterialButton
-                android:id="@+id/addYahrzeitButton"
-                android:layout_width="wrap_content"
+                android:id="@+id/buttonAbout"
+                android:layout_width="0dp"
                 android:layout_height="wrap_content"
-                android:text="Add Yahrzeit"
-                android:layout_marginTop="12dp"/>
+                android:layout_weight="1"
+                android:text="About"
+                style="@style/Widget.Material3.Button" />
+
+            <com.google.android.material.button.MaterialButton
+                android:id="@+id/buttonCustomize"
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_weight="1"
+                android:text="Customize"
+                android:layout_marginStart="8dp"
+                android:layout_marginEnd="8dp"
+                style="@style/Widget.Material3.Button" />
+
+            <com.google.android.material.button.MaterialButton
+                android:id="@+id/buttonSupport"
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_weight="1"
+                android:text="Support"
+                style="@style/Widget.Material3.Button" />
+
         </LinearLayout>
+
     </androidx.cardview.widget.CardView>
 
-    <!-- Ad space -->
-    <FrameLayout
-        android:id="@+id/adSpace"
-        android:layout_width="match_parent"
-        android:layout_height="20dp"
-        android:layout_marginTop="2dp"/>
 </LinearLayout>

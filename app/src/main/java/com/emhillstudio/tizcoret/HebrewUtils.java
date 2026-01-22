@@ -27,8 +27,18 @@ public class HebrewUtils {
         JewishCalendar jc = new JewishCalendar();
         jc.setDate(cal);
 
-        return formatHebrewDayMonth(jc);
+        return formatHebrewDayMonthEnglish(jc);
     }
+    public static String formatHebrewDayMonthEnglish(JewishCalendar jc) {
+        HebrewDateFormatter fmt = new HebrewDateFormatter();
+        fmt.setHebrewFormat(false); // English transliteration
+
+        String day = String.valueOf(jc.getJewishDayOfMonth());
+        String month = fmt.formatMonth(jc);
+
+        return day + " " + month;
+    }
+
     public static String formatHebrewDayMonth(JewishCalendar jc) {
         HebrewDateFormatter f = new HebrewDateFormatter();
         f.setHebrewFormat(true);
@@ -40,7 +50,7 @@ public class HebrewUtils {
         String month = f.formatMonth(jc); // <-- THIS is the correct API
         return day + " " + month;
     }
-    public static String computeInYear(Date date) {
+    public static Date computeInYearDate(Date date, int years_ahead) {
         Calendar cal = Calendar.getInstance();
         cal.setTime(date);
 
@@ -48,7 +58,7 @@ public class HebrewUtils {
         JewishCalendar jc = new JewishCalendar();
         jc.setDate(cal);
 
-        int targetYear = now.getJewishYear();
+        int targetYear = now.getJewishYear()+years_ahead;
         int sourceMonth = jc.getJewishMonth();
         int sourceDay = jc.getJewishDayOfMonth();
 
@@ -69,33 +79,11 @@ public class HebrewUtils {
         result.setJewishDate(targetYear, targetMonth, sourceDay);
 
         Date gregorian = result.getGregorianCalendar().getTime();
+        return gregorian;
+    }
+    public static String computeInYear(Date date) {
+        Date gregorian = computeInYearDate(date,0);
         SimpleDateFormat fmt = new SimpleDateFormat("MMM dd", Locale.US);
         return fmt.format(gregorian);
-    }
-
-    public static String sameDayMonthThisYear(Date original) {
-        Calendar src = Calendar.getInstance();
-        src.setTime(original);
-
-        int day = src.get(Calendar.DAY_OF_MONTH);
-        int month = src.get(Calendar.MONTH); // 0‑based
-
-        Calendar now = Calendar.getInstance();
-        int currentYear = now.get(Calendar.YEAR);
-
-        Calendar result = Calendar.getInstance();
-        result.set(Calendar.YEAR, currentYear);
-        result.set(Calendar.MONTH, month);
-        result.set(Calendar.DAY_OF_MONTH, day);
-
-        // Reset time to midnight if you want
-        result.set(Calendar.HOUR_OF_DAY, 0);
-        result.set(Calendar.MINUTE, 0);
-        result.set(Calendar.SECOND, 0);
-        result.set(Calendar.MILLISECOND, 0);
-
-        Date date = result.getTime();
-        SimpleDateFormat fmt = new SimpleDateFormat("MMM dd", Locale.US);
-        return fmt.format(date);
     }
 }

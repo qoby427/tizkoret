@@ -12,10 +12,11 @@ import android.content.ContentResolver;
 import android.content.ContentValues;
 import android.content.Context;
 import android.content.Intent;
+import android.content.SharedPreferences;
 import android.content.pm.PackageManager;
 import android.database.Cursor;
-import android.graphics.Rect;
 import android.location.Location;
+import android.media.RingtoneManager;
 import android.net.Uri;
 import android.os.Build;
 import android.os.Bundle;
@@ -35,6 +36,7 @@ import com.kosherjava.zmanim.hebrewcalendar.HebrewDateFormatter;
 import com.kosherjava.zmanim.util.GeoLocation;
 import com.kosherjava.zmanim.hebrewcalendar.JewishCalendar;
 
+import java.text.ParseException;
 import java.text.SimpleDateFormat;
 import java.time.DayOfWeek;
 import java.time.Instant;
@@ -58,10 +60,11 @@ public class MainActivity extends MessageActivity {
     private YahrzeitAdapter yahrzeitAdapter;
     private String timeZoneId;
     private List<YahrzeitEntry> list = new ArrayList<>();
-    private boolean wasKeyboardVisible = false;
 
-    public interface LocationListener {
-        void onLocationAvailable(double latitude, double longitude);
+    @Override
+    protected void onResume() {
+        super.onResume();
+        refreshYahrzeitList();
     }
 
     @Override
@@ -116,8 +119,51 @@ public class MainActivity extends MessageActivity {
         List<YahrzeitEntry> saved = UserSettings.loadYahrzeitList(this);
         yahrzeitAdapter.setEntries(saved);
 
+        MaterialButton updateCalendarButton = findViewById(R.id.updateCalendarButton);
+
+        if (saved.isEmpty()) {
+            updateCalendarButton.setVisibility(View.GONE);
+        } else {
+            updateCalendarButton.setVisibility(View.VISIBLE);
+        }
+
         findViewById(R.id.addYahrzeitButton).setOnClickListener(v -> {
             yahrzeitAdapter.addEmptyRow();
+        });
+
+        SharedPreferences prefs = getSharedPreferences("prefs", MODE_PRIVATE);
+
+        if (!prefs.contains("date_format")) {
+            prefs.edit().putString("date_format", "MM/dd/yyyy").apply();
+        }
+
+        updateCalendarButton.setOnClickListener(v -> {
+            SimpleDateFormat sdf = new SimpleDateFormat("MMM dd yyyy", Locale.US);
+
+            for (YahrzeitEntry entry : yahrzeitAdapter.getEntries()) {
+                if(entry.name.isEmpty() || entry.diedDate.toString().isEmpty())
+                    continue;
+                String yahrzeit = entry.inYear + " " + currentYear;
+                try {
+                    Date yahrzeitDate = sdf.parse(yahrzeit);
+                    Calendar cal = Calendar.getInstance();
+                    cal.setTime(yahrzeitDate);
+                    cal.add(Calendar.DAY_OF_MONTH, -1);
+
+                    ZmanimCalendar zc = buildZmanimCalendar();
+                    zc.setCalendar(cal);
+
+                    Date candleLighting = zc.getSunset();
+                    String msg = entry.name.strip()+"'s Yahrzeit tomorrow. ";
+                    if(insertCalendarEvent(candleLighting.getTime(), msg)) {
+                        scheduleAlarm(candleLighting.getTime(), "yahrzeit",entry.diedDate);
+                    }
+                } catch (ParseException e) {
+                    showMessage("Cannot pars date "+yahrzeit+"\n"+e.toString(), false);
+                    return;
+                }
+            }
+            showMessage("Calendar updated", true);
         });
 
         if (ActivityCompat.checkSelfPermission(this, Manifest.permission.WRITE_CALENDAR)
@@ -139,10 +185,37 @@ public class MainActivity extends MessageActivity {
 
         ShabbatWorker.schedule(this);
 
+        findViewById(R.id.buttonAbout).setOnClickListener(v -> {
+            startActivity(new Intent(this, AboutActivity.class));
+        });
+
+        findViewById(R.id.buttonCustomize).setOnClickListener(v -> {
+            startActivity(new Intent(this, CustomizeActivity.class));
+        });
+
+        findViewById(R.id.buttonSupport).setOnClickListener(v -> {
+            startActivity(new Intent(this, SupportActivity.class));
+        });
+
         if (BuildConfig.DEBUG) {
             //UserSettings.setShabbatAlarmEnabled(this, false);
             //updateShabbatUI(false);
             //scheduleDebugAlarm();
+        }
+    }
+    @Override
+    protected void onActivityResult(int requestCode, int resultCode, Intent data) {
+        super.onActivityResult(requestCode, resultCode, data);
+
+        if (requestCode == RINGTONE_REQUEST_CODE && resultCode == RESULT_OK) {
+            Uri uri = data.getParcelableExtra(RingtoneManager.EXTRA_RINGTONE_PICKED_URI);
+
+            if (uri != null) {
+                getSharedPreferences("prefs", MODE_PRIVATE)
+                        .edit()
+                        .putString("alarm_ringtone", uri.toString())
+                        .apply();
+            }
         }
     }
 
@@ -233,7 +306,11 @@ public class MainActivity extends MessageActivity {
             showQuestion("Add Shabbat Times",
                     "Would you like to remove Shabbat alarm?",
                     () -> {
-                        cancelShabbatAlarm();
+                        cancelAlarm(
+                                1001,
+                                ShabbatAlarmReceiver.class,
+                                AlarmService.class
+                        );
                     });
         }
     }
@@ -245,86 +322,6 @@ public class MainActivity extends MessageActivity {
         }
         return null;
     }
-
-    private void requestAccurateLocation(LocationListener callback) {
-        FusedLocationProviderClient fused =
-                LocationServices.getFusedLocationProviderClient(this);
-
-        if (ActivityCompat.checkSelfPermission(this,
-                Manifest.permission.ACCESS_FINE_LOCATION)
-                != PackageManager.PERMISSION_GRANTED) {
-
-            ActivityCompat.requestPermissions(
-                    this,
-                    new String[]{Manifest.permission.ACCESS_FINE_LOCATION},
-                    1001
-            );
-            return;
-        }
-
-        LocationRequest request = LocationRequest.create();
-        request.setPriority(LocationRequest.PRIORITY_HIGH_ACCURACY);
-        request.setInterval(1000);
-        request.setSmallestDisplacement(1); // meters
-        request.setNumUpdates(5); // wait for several fixes
-
-        fused.requestLocationUpdates(
-                request,
-                new LocationCallback() {
-                    @Override
-                    public void onLocationResult(LocationResult result) {
-                        for (Location loc : result.getLocations()) {
-                            if (loc != null && loc.getAccuracy() < 100) {
-                                // Valid fix
-                                callback.onLocationAvailable(loc.getLatitude(), loc.getLongitude());
-                                fused.removeLocationUpdates(this);
-                                break;
-                            }
-                        }
-                    }
-                },
-                Looper.getMainLooper()
-        );
-    }
-
-    private void saveAccurateLocation(LocationListener listener) {
-        FusedLocationProviderClient fused = LocationServices.getFusedLocationProviderClient(this);
-
-        if (ActivityCompat.checkSelfPermission(this, Manifest.permission.ACCESS_FINE_LOCATION)
-                != PackageManager.PERMISSION_GRANTED) {
-            ActivityCompat.requestPermissions(this, new String[]{Manifest.permission.ACCESS_FINE_LOCATION}, 1001);
-            return;
-        }
-
-        LocationRequest request = LocationRequest.create();
-        request.setPriority(LocationRequest.PRIORITY_HIGH_ACCURACY);
-        request.setInterval(1000);
-        request.setNumUpdates(10); // request multiple updates to allow GPS to lock
-
-        fused.requestLocationUpdates(request, new LocationCallback() {
-            @Override
-            public void onLocationResult(LocationResult result) {
-                for (Location loc : result.getLocations()) {
-                    if (loc != null && loc.getAccuracy() < 50) { // meters
-                        double lat = loc.getLatitude();
-                        double lng = loc.getLongitude();
-                        System.out.println("Latitude: " + lat + ", Longitude: " + lng);
-
-                        // Ignore fallback (CA) coordinates
-                        if (!(lat > 37 && lat < 38 && lng > -123 && lng < -122)) {
-                            UserSettings.setLatitude(MainActivity.this, lat);
-                            UserSettings.setLongitude(MainActivity.this, lng);
-                            listener.onLocationAvailable(lat, lng);
-                            fused.removeLocationUpdates(this);
-                            return;
-                        }
-                    }
-                }
-            }
-        }, Looper.getMainLooper());
-    }
-
-
     private ZmanimCalendar buildZmanimCalendar() {
         double lat = UserSettings.getLatitude(this);
         double lng = UserSettings.getLongitude(this);
@@ -363,25 +360,25 @@ public class MainActivity extends MessageActivity {
 
         long candleLightingMillis = candleLighting.getTime();
 
-        insertShabbatEvent(candleLightingMillis);
-        scheduleShabbatAlarm(candleLightingMillis);
+        if(insertCalendarEvent(candleLightingMillis,""))
+            scheduleAlarm(candleLightingMillis, "shabbat", null);
     }
 
-    private void insertShabbatEvent(long candleLightingMillis) {
+    private boolean insertCalendarEvent(long candleLightingMillis, String header) {
         long calendarId = getGoogleCalendarId();
         if (calendarId == -1)
-            return;
+            return false;
 
         ContentResolver cr = getContentResolver();
-
 
         // Format time for title
         String formatted = new SimpleDateFormat("h:mm a", Locale.getDefault())
                 .format(new Date(candleLightingMillis));
-        String title = "Candle Lighting – " + formatted;
+
+        String title = header + "Candle Lighting – " + formatted+". Brachot from Tizcóret team";
 
         if (eventAlreadyExists(calendarId, candleLightingMillis, title))
-            return;
+            return false;
 
         // 1. Insert event into EVENTS table
         ContentValues event = new ContentValues();
@@ -395,7 +392,7 @@ public class MainActivity extends MessageActivity {
 
         Uri eventUri = cr.insert(CalendarContract.Events.CONTENT_URI, event);
         if (eventUri == null)
-            return;
+            return false;
 
         long eventId = Long.parseLong(eventUri.getLastPathSegment());
 
@@ -406,6 +403,8 @@ public class MainActivity extends MessageActivity {
         reminder.put(CalendarContract.Reminders.METHOD, CalendarContract.Reminders.METHOD_ALERT);
 
         cr.insert(CalendarContract.Reminders.CONTENT_URI, reminder);
+
+        return true;
     }
 
     private long getGoogleCalendarId() {
@@ -417,61 +416,65 @@ public class MainActivity extends MessageActivity {
                 CalendarContract.Calendars.ACCOUNT_NAME,
                 CalendarContract.Calendars.ACCOUNT_TYPE,
                 CalendarContract.Calendars.OWNER_ACCOUNT,
-                CalendarContract.Calendars.CALENDAR_ACCESS_LEVEL
-        };
-
-        // We only want:
-        // - Google calendars (ACCOUNT_TYPE = com.google)
-        // - Writable calendars (ACCESS_LEVEL >= CONTRIBUTOR)
-        String selection =
-                CalendarContract.Calendars.ACCOUNT_TYPE + "=? AND " +
-                        CalendarContract.Calendars.CALENDAR_ACCESS_LEVEL + ">=?";
-
-        String[] selectionArgs = new String[]{
-                "com.google",
-                Integer.toString(CalendarContract.Calendars.CAL_ACCESS_CONTRIBUTOR) // 500
+                CalendarContract.Calendars.CALENDAR_ACCESS_LEVEL,
+                CalendarContract.Calendars.SYNC_EVENTS
         };
 
         Cursor cur = cr.query(
                 CalendarContract.Calendars.CONTENT_URI,
                 projection,
-                selection,
-                selectionArgs,
+                null,
+                null,
                 null
         );
 
         if (cur == null)
             return -1;
 
-        long calendarId = -1;
+        long bestId = -1;
 
         while (cur.moveToNext()) {
             long id = cur.getLong(0);
             String name = cur.getString(1);
             String account = cur.getString(2);
+            String type = cur.getString(3);
             String owner = cur.getString(4);
             int access = cur.getInt(5);
+            int sync = cur.getInt(6);
 
-            // Skip Holidays, Birthdays, and other system calendars
+            // Must be Google
+            if (!"com.google".equals(type))
+                continue;
+
+            // Must be synced
+            if (sync != 1)
+                continue;
+
+            // Must be writable
+            if (access < CalendarContract.Calendars.CAL_ACCESS_CONTRIBUTOR)
+                continue;
+
+            // Skip holidays/birthdays
             if (name != null && name.toLowerCase().contains("holiday"))
                 continue;
             if (name != null && name.toLowerCase().contains("birthday"))
                 continue;
 
-            // Prefer calendars owned by the user
+            // Prefer primary
             if (account != null && account.equals(owner)) {
-                calendarId = id;
+                bestId = id;
                 break;
             }
 
-            // Fallback: first writable Google calendar
-            if (calendarId == -1)
-                calendarId = id;
+            // Fallback
+            if (bestId == -1)
+                bestId = id;
         }
 
         cur.close();
-        return calendarId;
+        return bestId;
     }
+
 
     private long toLocalMillis(long utcMillis) {
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
@@ -484,7 +487,7 @@ public class MainActivity extends MessageActivity {
         return 0;
     }
 
-    private void scheduleShabbatAlarm(long candleLightingMillis) {
+    private void scheduleAlarm(long candleLightingMillis, String event, Date diedDate) {
         long localCandle = toLocalMillis(candleLightingMillis);
         long triggerAt = localCandle - 18 * 60 * 1000;
 
@@ -495,10 +498,31 @@ public class MainActivity extends MessageActivity {
             return;
         }
 
-        Intent intent = new Intent(this, ShabbatAlarmReceiver.class);
+        Class<?> receiverClass;
+        int requestCode;
+
+        if ("shabbat".equals(event)) {
+            receiverClass = ShabbatAlarmReceiver.class;
+            requestCode = 1001;
+        } else if ("yahrzeit".equals(event)) {
+            receiverClass = YahrzeitAlarmReceiver.class;
+            requestCode = diedDate.hashCode();
+        } else {
+            showMessage("Unknown alarm type: " + event, false);
+            return;
+        }
+
+        Intent intent = new Intent(this, receiverClass);
+
+        SharedPreferences prefs = getSharedPreferences("prefs", MODE_PRIVATE);
+        String uriString = prefs.getString("ringtone_" + event, null);
+        intent.putExtra("ringtone_uri", uriString);
+        if ("yahrzeit".equals(event))
+            intent.putExtra("died_date", diedDate);
+
         PendingIntent pi = PendingIntent.getBroadcast(
                 this,
-                1001,
+                requestCode,
                 intent,
                 PendingIntent.FLAG_UPDATE_CURRENT | PendingIntent.FLAG_IMMUTABLE
         );
@@ -514,22 +538,27 @@ public class MainActivity extends MessageActivity {
         }
     }
 
-    private void cancelShabbatAlarm() {
+    private void cancelAlarm(
+            int requestCode,
+            Class<?> receiverClass,
+            Class<?> serviceClass
+    ) {
         AlarmManager am = (AlarmManager) getSystemService(Context.ALARM_SERVICE);
 
-        Intent intent = new Intent(this, ShabbatAlarmReceiver.class);
+        // Cancel the scheduled alarm
+        Intent intent = new Intent(this, receiverClass);
 
         PendingIntent pi = PendingIntent.getBroadcast(
                 this,
-                1001,  // must match the one used when scheduling
+                requestCode,
                 intent,
                 PendingIntent.FLAG_UPDATE_CURRENT | PendingIntent.FLAG_IMMUTABLE
         );
 
-        am.cancel(pi);  // cancels the alarm
+        am.cancel(pi);
 
-        // Also stop the service if it's running
-        Intent serviceIntent = new Intent(this, ShabbatAlarmService.class);
+        // Stop the service if it's running
+        Intent serviceIntent = new Intent(this, serviceClass);
         stopService(serviceIntent);
     }
 
@@ -546,7 +575,7 @@ public class MainActivity extends MessageActivity {
     private boolean eventAlreadyExists(long calendarId, long startUtc, String title) {
         ContentResolver cr = getContentResolver();
 
-        long minuteStart = (startUtc / 60000L) * 60000L;
+        long minuteStart = Math.round(startUtc / 60000.0) * 60000L;
         long minuteEnd = minuteStart + 59999L;
 
         String selection =
@@ -575,35 +604,6 @@ public class MainActivity extends MessageActivity {
 
         return exists;
     }
-
-    private void scheduleDebugAlarm() {
-        long triggerAt = System.currentTimeMillis() + 0 * 1000;
-
-        AlarmManager am = (AlarmManager) getSystemService(Context.ALARM_SERVICE);
-
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S && !am.canScheduleExactAlarms()) {
-            showMessage("Exact alarms disabled in system settings", false);
-            return;
-        }
-
-        Intent intent = new Intent(this, ShabbatAlarmReceiver.class);
-
-        PendingIntent pi = PendingIntent.getBroadcast(
-                this,
-                9999, // debug alarm ID
-                intent,
-                PendingIntent.FLAG_UPDATE_CURRENT | PendingIntent.FLAG_IMMUTABLE
-        );
-
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
-            am.setExactAndAllowWhileIdle(AlarmManager.RTC_WAKEUP, triggerAt, pi);
-        } else {
-            am.setExact(AlarmManager.RTC_WAKEUP, triggerAt, pi);
-        }
-
-        showMessage("Debug alarm scheduled for 10 sec from now", false);
-    }
-
     private void updateHebrewAndInYear(YahrzeitEntry entry) {
         if (entry.diedDate == null) {
             entry.hebrewDate = "";
@@ -639,32 +639,24 @@ public class MainActivity extends MessageActivity {
 
         yahrzeitAdapter.notifyDataSetChanged();
     }
-    private void setupKeyboardListener(View root) {
-        root.getViewTreeObserver().addOnGlobalLayoutListener(() -> {
-            Rect r = new Rect();
-            root.getWindowVisibleDisplayFrame(r);
+    private static final int RINGTONE_REQUEST_CODE = 1234;
 
-            int screenHeight = root.getRootView().getHeight();
-            int keypadHeight = screenHeight - r.bottom;
+    private void openRingtonePicker() {
+        Intent intent = new Intent(RingtoneManager.ACTION_RINGTONE_PICKER);
+        intent.putExtra(RingtoneManager.EXTRA_RINGTONE_TYPE, RingtoneManager.TYPE_ALARM);
+        intent.putExtra(RingtoneManager.EXTRA_RINGTONE_TITLE, "Select Alarm Ringtone");
+        intent.putExtra(RingtoneManager.EXTRA_RINGTONE_SHOW_SILENT, false);
+        intent.putExtra(RingtoneManager.EXTRA_RINGTONE_SHOW_DEFAULT, true);
 
-            boolean isKeyboardNowVisible = keypadHeight > screenHeight * 0.15;
-
-            if (!isKeyboardNowVisible && wasKeyboardVisible) {
-                onKeyboardHidden();
-            }
-
-            wasKeyboardVisible = isKeyboardNowVisible;
-        });
+        startActivityForResult(intent, RINGTONE_REQUEST_CODE);
     }
-    private void onKeyboardHidden() {
-        for (YahrzeitEntry entry : yahrzeitAdapter.getEntries()) {
-            if (entry.diedDate != null) {
-                entry.hebrewDate = HebrewUtils.toHebrewDate(entry.diedDate);
-                entry.inYear = HebrewUtils.computeInYear(entry.diedDate);
-            }
-        }
+    private void refreshYahrzeitList() {
+        // Reload your data (from DB, SharedPreferences, file, etc.)
+        List<YahrzeitEntry> list = UserSettings.loadYahrzeitList(this);
 
-        UserSettings.saveYahrzeitList(this, yahrzeitAdapter.getEntries());
+        // Recreate adapter or update it
+        yahrzeitAdapter.setEntries(list);
         yahrzeitAdapter.notifyDataSetChanged();
     }
+
 }

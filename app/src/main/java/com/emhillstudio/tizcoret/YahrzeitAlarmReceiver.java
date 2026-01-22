@@ -1,68 +1,64 @@
 package com.emhillstudio.tizcoret;
 
-import static android.content.Context.MODE_PRIVATE;
-
 import android.app.AlarmManager;
 import android.app.PendingIntent;
 import android.content.BroadcastReceiver;
 import android.content.Context;
 import android.content.Intent;
-import android.content.SharedPreferences;
 import android.os.Build;
 
-public class ShabbatAlarmReceiver extends BroadcastReceiver {
+import java.text.ParseException;
+import java.text.SimpleDateFormat;
+import java.util.Date;
+import java.util.Locale;
+
+public class YahrzeitAlarmReceiver extends BroadcastReceiver {
+    private SimpleDateFormat sdf = new SimpleDateFormat("MM/dd/yyyy", Locale.US);
 
     @Override
     public void onReceive(Context context, Intent intent) {
-
-        // -----------------------------
-        // 1. Do your alarm action
-        // -----------------------------
         Intent serviceIntent = new Intent(context, AlarmService.class);
-        serviceIntent.putExtra("event", "shabbat");
+        serviceIntent.putExtra("event", "yahrzeit");
 
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
             context.startForegroundService(serviceIntent);
         }
 
         String ringtone = intent.getStringExtra("ringtone_yahrzeit");
+        String diedDate = intent.getStringExtra("died_date");
 
-        // -----------------------------
-        // 2. Schedule the next alarm
-        // -----------------------------
-        scheduleNextAlarm(context, ringtone);
+        try {
+            scheduleNextAlarm(context, ringtone, sdf.parse(diedDate));
+        } catch (ParseException e) {
+        }
     }
-
-    private void scheduleNextAlarm(Context context, String ringtone) {
+    private void scheduleNextAlarm(Context context, String ringtone, Date date) {
         AlarmManager am = (AlarmManager) context.getSystemService(Context.ALARM_SERVICE);
 
         // Check exact alarm permission on Android 12+
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S &&
                 !am.canScheduleExactAlarms()) {
-            // You can show a notification or toast here if you want
             return;
         }
 
-        // Next alarm in 12 hours
-        long nextTrigger = System.currentTimeMillis() + 12 * 60 * 60 * 1000;
+        Intent intent = new Intent(context, YahrzeitAlarmReceiver.class);
+        intent.putExtra("ringtone_yahrzeit", ringtone);
+        intent.putExtra("died_date", sdf.format(date));
 
-        // Save for UI if needed
-        UserSettings.setNextAlarmTime(context, nextTrigger);
-        Intent intent = new Intent(context, ShabbatAlarmReceiver.class);
-        intent.putExtra("ringtone_shabbat", ringtone);
+        Date nextDate = HebrewUtils.computeInYearDate(date,1);
 
         PendingIntent pi = PendingIntent.getBroadcast(
                 context,
-                1001,
+                sdf.format(date).hashCode(),
                 intent,
                 PendingIntent.FLAG_UPDATE_CURRENT | PendingIntent.FLAG_IMMUTABLE
         );
 
         try {
             if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
-                am.setExactAndAllowWhileIdle(AlarmManager.RTC_WAKEUP, nextTrigger, pi);
+                am.setExactAndAllowWhileIdle(AlarmManager.RTC_WAKEUP, nextDate.getTime(), pi);
             } else {
-                am.setExact(AlarmManager.RTC_WAKEUP, nextTrigger, pi);
+                am.setExact(AlarmManager.RTC_WAKEUP, nextDate.getTime(), pi);
             }
         } catch (SecurityException e) {
             // Exact alarms disabled

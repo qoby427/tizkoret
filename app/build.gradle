@@ -46,12 +46,11 @@ dependencies {
     implementation libs.zstd.jni
     implementation libs.play.services.location.v2101
     implementation libs.timeshape.v2023a10
-    implementation libs.material.v1110
     implementation libs.work.runtime
-
-    // Add Zmanim directly — this is the important part
+    implementation "com.android.billingclient:billing:6.1.0"
     implementation "com.kosherjava:zmanim:2.5.0"
     implementation libs.gson
+    implementation libs.material.v1130
 
     implementation(libs.timeshape.v2025b26) {
         exclude group: "com.github.luben", module: "zstd-jni"

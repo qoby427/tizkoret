@@ -8,7 +8,7 @@ public class StopAlarmReceiver extends BroadcastReceiver {
     @Override
     public void onReceive(Context context, Intent intent) {
         // Stop the service
-        context.stopService(new Intent(context, ShabbatAlarmService.class));
+        context.stopService(new Intent(context, AlarmService.class));
     }
 }
 

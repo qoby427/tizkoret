@@ -1,6 +1,8 @@
 package com.emhillstudio.tizcoret;
 
 import android.content.Context;
+import android.content.SharedPreferences;
+import android.os.Build;
 import android.text.Editable;
 import android.text.TextWatcher;
 import android.view.LayoutInflater;
@@ -31,6 +33,12 @@ public class YahrzeitAdapter extends RecyclerView.Adapter<RecyclerView.ViewHolde
         this.context = context;
         this.entries = entries;
         this.listener = listener;
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.N) {
+            this.entries.removeIf(e ->
+                    e.name == null || e.name.trim().isEmpty() ||
+                            e.diedDate == null
+            );
+        }
     }
 
     // ---------------------------------------------------------
@@ -79,7 +87,9 @@ public class YahrzeitAdapter extends RecyclerView.Adapter<RecyclerView.ViewHolde
         row.nameField.setText(entry.name != null ? entry.name : "");
 
         if (entry.diedDate != null) {
-            SimpleDateFormat sdf = new SimpleDateFormat("MM/dd/yyyy", Locale.US);
+            SharedPreferences prefs = context.getSharedPreferences("prefs", Context.MODE_PRIVATE);
+            String format = prefs.getString("date_format", "MM/dd/yyyy");
+            SimpleDateFormat sdf = new SimpleDateFormat(format, Locale.US);
             row.dateField.setText(sdf.format(entry.diedDate));
         } else {
             row.dateField.setText("");
@@ -151,8 +161,8 @@ public class YahrzeitAdapter extends RecyclerView.Adapter<RecyclerView.ViewHolde
                         row.hebrewField.setText(heb);
                         row.inYearField.setText(inYear);
 
-                        // Save to prefs
-                        UserSettings.saveYahrzeitList(context, getEntries());
+                        if(!entry.name.isEmpty() && !entry.diedDate.toString().isEmpty())
+                            UserSettings.saveYahrzeitList(context, getEntries());
                     }
                 }
 

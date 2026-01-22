@@ -2,6 +2,7 @@ package com.emhillstudio.tizcoret;
 
 import android.content.Context;
 import android.content.SharedPreferences;
+import android.os.Build;
 
 import com.google.gson.Gson;
 import com.google.gson.reflect.TypeToken;
@@ -110,6 +111,12 @@ public class UserSettings {
         // Load list, replace entry, save list back
     }
     public static void saveYahrzeitList(Context context, List<YahrzeitEntry> list) {
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.N) {
+            list.removeIf(e ->
+                    e.name == null || e.name.trim().isEmpty() ||
+                            e.diedDate == null
+            );
+        }
         Gson gson = new Gson();
         String json = gson.toJson(list);
 
@@ -117,8 +124,6 @@ public class UserSettings {
         prefs.edit().putString("yahrzeit_list", json).apply();
     }
     public static List<YahrzeitEntry> loadYahrzeitList(Context context) {
-        //if(BuildConfig.DEBUG) saveYahrzeitList(context, new ArrayList<>());
-
         SharedPreferences prefs = context.getSharedPreferences("tizkoret", Context.MODE_PRIVATE);
         String json = prefs.getString("yahrzeit_list", null);
 
@@ -126,7 +131,14 @@ public class UserSettings {
 
         Gson gson = new Gson();
         Type type = new TypeToken<List<YahrzeitEntry>>(){}.getType();
-        return gson.fromJson(json, type);
+        List<YahrzeitEntry> list = gson.fromJson(json, type);
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.N) {
+            list.removeIf(e ->
+                    e.name == null || e.name.trim().isEmpty() ||
+                            e.diedDate == null
+            );
+        }
+        return list;
     }
 
     public static void removeYahrzeit(Context ctx, int index) {
