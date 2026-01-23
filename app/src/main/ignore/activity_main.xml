@@ -86,19 +86,20 @@
             android:layout_height="match_parent"
             android:fillViewport="true">
 
-            <RelativeLayout
+            <androidx.constraintlayout.widget.ConstraintLayout
                 android:layout_width="match_parent"
-                android:layout_height="match_parent"
+                android:layout_height="wrap_content"
                 android:padding="16dp">
 
-                <!-- Scrollable content -->
+                <!-- Content -->
                 <LinearLayout
                     android:id="@+id/yahrzeitContent"
                     android:orientation="vertical"
-                    android:layout_width="match_parent"
+                    android:layout_width="0dp"
                     android:layout_height="wrap_content"
-                    android:layout_alignParentTop="true"
-                    android:layout_above="@id/yahrzeitButtonRow">
+                    app:layout_constraintTop_toTopOf="parent"
+                    app:layout_constraintStart_toStartOf="parent"
+                    app:layout_constraintEnd_toEndOf="parent">
 
                     <TextView
                         android:id="@+id/yahrzeitTitle"
@@ -158,45 +159,48 @@
                         android:scrollbars="vertical"/>
                 </LinearLayout>
 
-                <!-- Buttons pinned to bottom INSIDE ScrollView -->
+                <!-- Buttons pinned to bottom -->
                 <LinearLayout
-                    android:id="@+id/yahrzeitButtonRow"
-                    android:layout_width="match_parent"
+                    android:id="@+id/buttonRow"
+                    android:layout_width="0dp"
                     android:layout_height="wrap_content"
                     android:orientation="horizontal"
-                    android:gravity="center"
-                    android:paddingTop="12dp"
-                    android:paddingBottom="12dp"
-                    android:layout_alignParentBottom="true">
+                    android:layout_marginTop="12dp"
+                    app:layout_constraintTop_toBottomOf="@id/yahrzeitContent"
+                    app:layout_constraintStart_toStartOf="parent"
+                    app:layout_constraintEnd_toEndOf="parent"
+                    app:layout_constraintBottom_toBottomOf="parent">
 
                     <com.google.android.material.button.MaterialButton
                         android:id="@+id/addYahrzeitButton"
                         android:layout_width="0dp"
                         android:layout_height="wrap_content"
                         android:layout_weight="1"
-                        android:text="Add Yahrzeit"
-                        style="@style/Widget.Material3.Button" />
-
-                    <View
-                        android:layout_width="0dp"
-                        android:layout_height="0dp"
-                        android:layout_weight="1"/>
+                        android:minWidth="0dp"
+                        android:insetLeft="0dp"
+                        android:insetRight="0dp"
+                        android:text="Add Yahrzeit"/>
 
                     <com.google.android.material.button.MaterialButton
                         android:id="@+id/updateCalendarButton"
                         android:layout_width="0dp"
                         android:layout_height="wrap_content"
                         android:layout_weight="1"
-                        android:text="Update Calendar"
-                        style="@style/Widget.Material3.Button" />
+                        android:minWidth="0dp"
+                        android:insetLeft="0dp"
+                        android:insetRight="0dp"
+                        android:text="Update Calendar"/>
                 </LinearLayout>
 
-            </RelativeLayout>
+            </androidx.constraintlayout.widget.ConstraintLayout>
         </ScrollView>
+
     </androidx.cardview.widget.CardView>
+
 
     <!-- Bottom Panel (fixed) -->
     <androidx.cardview.widget.CardView
+        android:id="@+id/bottomPanel"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
         android:layout_marginTop="12dp"
@@ -204,6 +208,7 @@
         app:cardUseCompatPadding="true">
 
         <LinearLayout
+            android:id="@+id/bottomButtonRow"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
             android:orientation="horizontal"
