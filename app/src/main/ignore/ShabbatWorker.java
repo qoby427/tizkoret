@@ -14,8 +14,6 @@ import androidx.work.WorkerParameters;
 import java.util.Calendar;
 import java.util.concurrent.TimeUnit;
 
-import android.content.Context;
-
 public class ShabbatWorker extends Worker {
     public ShabbatWorker(@NonNull Context context, @NonNull WorkerParameters params) {
         super(context, params);

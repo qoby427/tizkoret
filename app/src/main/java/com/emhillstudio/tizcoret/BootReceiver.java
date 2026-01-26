@@ -8,8 +8,16 @@ public class BootReceiver extends BroadcastReceiver {
     @Override
     public void onReceive(Context context, Intent intent) {
         if (Intent.ACTION_BOOT_COMPLETED.equals(intent.getAction())) {
+
+            // 1. Restore all Yahrzeit alarms
             AlarmService.rescheduleAllYahrzeitAlarms(context);
-            ShabbatWorker.schedule(context);
+
+            // 2. Restore Shabbat alarm
+            String json = UserSettings.getLastShabbatJson(context);
+            if (json != null) {
+                new ShabbatAlarmReceiver().scheduleNextAlarm(context, json);
+            }
         }
     }
 }
+

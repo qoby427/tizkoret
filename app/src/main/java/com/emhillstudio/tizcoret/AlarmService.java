@@ -21,22 +21,43 @@ import android.os.Looper;
 
 import androidx.core.app.NotificationCompat;
 
+import com.google.gson.Gson;
+
 import java.text.SimpleDateFormat;
 import java.util.Date;
 import java.util.List;
 import java.util.Locale;
+import java.util.Map;
 
 public class AlarmService extends Service {
 
     private MediaPlayer mediaPlayer;
     private String eventType; // "shabbat" or "yahrzeit"
+    private String candleTime;
 
     @Override
     public int onStartCommand(Intent intent, int flags, int startId) {
 
-        // Determine which alarm type this is
-        eventType = intent.getStringExtra("event");
-        if (eventType == null) eventType = "shabbat"; // fallback
+        // 1. Handle STOP action first
+        if (intent != null && "STOP_ALARM".equals(intent.getAction())) {
+            if (mediaPlayer != null) {
+                try {
+                    mediaPlayer.stop();
+                    mediaPlayer.release();
+                } catch (Exception ignored) {}
+                mediaPlayer = null;
+            }
+
+            stopForeground(true);
+            stopSelf();
+            return START_NOT_STICKY;
+        }
+
+        // 2. Normal alarm start
+        String json = intent.getStringExtra("payload");
+        Map<String, Object> payload = new Gson().fromJson(json, Map.class);
+        eventType = (String) payload.get("event");
+        candleTime = (String) payload.get("candle_time");
 
         createNotificationChannel();
         startForeground(1, createNotification());
@@ -54,8 +75,8 @@ public class AlarmService extends Service {
             fadeInVolume();
             autoStopAfterOneMinute();
 
-        } catch (Exception e) {
-            e.printStackTrace();
+        }
+        catch (Exception e) {
         }
 
         return START_STICKY;
@@ -74,7 +95,7 @@ public class AlarmService extends Service {
     }
 
     private Uri getAlarmTone(String event) {
-        SharedPreferences prefs = getSharedPreferences("prefs", MODE_PRIVATE);
+        SharedPreferences prefs = getSharedPreferences(UserSettings.PREFS, MODE_PRIVATE);
         String saved = prefs.getString("ringtone_" + event, null);
 
         if (saved != null) return Uri.parse(saved);
@@ -90,13 +111,14 @@ public class AlarmService extends Service {
 
     private Notification createNotification() {
 
-        Intent stopIntent = new Intent(this, StopAlarmReceiver.class);
+        // STOP goes directly to AlarmService
+        Intent stopIntent = new Intent(this, AlarmService.class);
         stopIntent.setAction("STOP_ALARM");
         stopIntent.putExtra("event", eventType);
 
-        PendingIntent stopPendingIntent = PendingIntent.getBroadcast(
+        PendingIntent stopPendingIntent = PendingIntent.getService(
                 this,
-                0,
+                2001,
                 stopIntent,
                 PendingIntent.FLAG_UPDATE_CURRENT | PendingIntent.FLAG_IMMUTABLE
         );
@@ -112,10 +134,15 @@ public class AlarmService extends Service {
                         stopPendingIntent
                 ).build();
 
+        String text = "Tap STOP to silence the alarm";
+
+        if ("shabbat".equals(eventType) && candleTime != null)
+            text = "Candle lighting at " + candleTime + " — " +text;
+
         return new NotificationCompat.Builder(this, "alarm_channel")
                 .setContentTitle(title)
-                .setContentText("Tap STOP to silence the alarm")
-                .setSmallIcon(R.drawable.ic_alarm)
+                .setContentText(text)
+                .setSmallIcon(R.drawable.ic_shabbat_candles)
                 .setOngoing(true)
                 .addAction(stopAction)
                 .setPriority(NotificationCompat.PRIORITY_HIGH)
@@ -165,59 +192,14 @@ public class AlarmService extends Service {
         return null;
     }
     public static void rescheduleAllYahrzeitAlarms(Context context) {
-        SharedPreferences prefs = context.getSharedPreferences("prefs", MODE_PRIVATE);
-        List<YahrzeitEntry> entries = UserSettings.loadYahrzeitList(context);
-        String uriString = prefs.getString("ringtone_alarm", null);
-        SimpleDateFormat sdf = new SimpleDateFormat("MMM dd", Locale.US);
+        List<String> jsonList = UserSettings.loadYahrzeitJsonList(context);
+        if (jsonList == null || jsonList.isEmpty()) return;
 
-        if (entries == null || entries.isEmpty()) {
-            return;
-        }
+        YahrzeitAlarmReceiver receiver = new YahrzeitAlarmReceiver();
 
-        AlarmManager am = (AlarmManager) context.getSystemService(Context.ALARM_SERVICE);
-
-        for (YahrzeitEntry entry : entries) {
-            Date diedDate = entry.diedDate;
-            String ringtone = prefs.getString("ringtone_alarm", sdf.format(diedDate));
-
-            // 2. Compute next Yahrzeit date
-            Date nextDate = HebrewUtils.computeInYearDate(diedDate,1);
-            long triggerAtMillis = nextDate.getTime();
-
-            // 3. Build the PendingIntent
-            Intent intent = new Intent(context, YahrzeitAlarmReceiver.class);
-            intent.putExtra("event", "yahrzeit");
-            intent.putExtra("died_date", diedDate);
-            intent.putExtra("ringtone_uri", ringtone);
-
-            // Unique requestCode per entry
-            int requestCode = diedDate.hashCode();
-
-            PendingIntent pi = PendingIntent.getBroadcast(
-                    context,
-                    requestCode,
-                    intent,
-                    PendingIntent.FLAG_UPDATE_CURRENT | PendingIntent.FLAG_IMMUTABLE
-            );
-
-            // 4. Schedule the alarm
-            try {
-                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
-                    am.setExactAndAllowWhileIdle(
-                            AlarmManager.RTC_WAKEUP,
-                            triggerAtMillis,
-                            pi
-                    );
-                } else {
-                    am.setExact(
-                            AlarmManager.RTC_WAKEUP,
-                            triggerAtMillis,
-                            pi
-                    );
-                }
-            } catch (SecurityException ignored) {
-                // Exact alarms disabled
-            }
+        for (String json : jsonList) {
+            receiver.scheduleNextAlarm(context, json);
         }
     }
+
 }

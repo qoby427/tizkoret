@@ -10,62 +10,40 @@ import android.content.Intent;
 import android.content.SharedPreferences;
 import android.os.Build;
 
-public class ShabbatAlarmReceiver extends BroadcastReceiver {
+import com.google.gson.Gson;
 
+import java.text.SimpleDateFormat;
+import java.util.Date;
+import java.util.HashMap;
+import java.util.Locale;
+import java.util.Map;
+
+public class ShabbatAlarmReceiver extends AlarmReceiver {
     @Override
     public void onReceive(Context context, Intent intent) {
 
-        // -----------------------------
-        // 1. Do your alarm action
-        // -----------------------------
-        Intent serviceIntent = new Intent(context, AlarmService.class);
-        serviceIntent.putExtra("event", "shabbat");
+        String json = intent.getStringExtra("payload");
+        if (json == null)
+            return;
 
+        // Start service
+        Intent serviceIntent = new Intent(context, AlarmService.class);
+        serviceIntent.putExtra("payload", json);
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
             context.startForegroundService(serviceIntent);
         }
 
-        String ringtone = intent.getStringExtra("ringtone_yahrzeit");
+        // Parse existing payload
+        Map<String, Object> payload = new Gson().fromJson(json, Map.class);
 
-        // -----------------------------
-        // 2. Schedule the next alarm
-        // -----------------------------
-        scheduleNextAlarm(context, ringtone);
-    }
+        // Compute next week's trigger
+        long nextWeekTrigger = HebrewUtils.computeNextCandleLighting(context) - 5*60*1000;
 
-    private void scheduleNextAlarm(Context context, String ringtone) {
-        AlarmManager am = (AlarmManager) context.getSystemService(Context.ALARM_SERVICE);
-
-        // Check exact alarm permission on Android 12+
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S &&
-                !am.canScheduleExactAlarms()) {
-            // You can show a notification or toast here if you want
-            return;
-        }
-
-        // Next alarm in 12 hours
-        long nextTrigger = System.currentTimeMillis() + 12 * 60 * 60 * 1000;
-
-        // Save for UI if needed
-        UserSettings.setNextAlarmTime(context, nextTrigger);
-        Intent intent = new Intent(context, ShabbatAlarmReceiver.class);
-        intent.putExtra("ringtone_shabbat", ringtone);
-
-        PendingIntent pi = PendingIntent.getBroadcast(
-                context,
-                1001,
-                intent,
-                PendingIntent.FLAG_UPDATE_CURRENT | PendingIntent.FLAG_IMMUTABLE
-        );
-
-        try {
-            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
-                am.setExactAndAllowWhileIdle(AlarmManager.RTC_WAKEUP, nextTrigger, pi);
-            } else {
-                am.setExact(AlarmManager.RTC_WAKEUP, nextTrigger, pi);
-            }
-        } catch (SecurityException e) {
-            // Exact alarms disabled
-        }
+        // Update only the changed fields
+        payload.put("next_candle_time", nextWeekTrigger);
+        // Serialize back
+        String nextJson = new Gson().toJson(payload);
+        UserSettings.setLastShabbatJson(context, nextJson);
+        scheduleNextAlarm(context, nextJson);
     }
 }

@@ -23,12 +23,12 @@ import java.util.Locale;
 public class YahrzeitAdapter extends RecyclerView.Adapter<RecyclerView.ViewHolder> {
     private final Context context;
     private List<YahrzeitEntry> entries;
-    private final OnEntryChangedListener listener;
+    private OnEntryChangedListener listener;
+    private SharedPreferences prefs;
 
     public interface OnEntryChangedListener {
         void onEntryChanged(YahrzeitEntry entry);
     }
-
     public YahrzeitAdapter(Context context, List<YahrzeitEntry> entries, OnEntryChangedListener listener) {
         this.context = context;
         this.entries = entries;
@@ -39,6 +39,7 @@ public class YahrzeitAdapter extends RecyclerView.Adapter<RecyclerView.ViewHolde
                             e.diedDate == null
             );
         }
+        prefs = context.getSharedPreferences(UserSettings.PREFS, Context.MODE_PRIVATE);
     }
 
     // ---------------------------------------------------------
@@ -87,7 +88,6 @@ public class YahrzeitAdapter extends RecyclerView.Adapter<RecyclerView.ViewHolde
         row.nameField.setText(entry.name != null ? entry.name : "");
 
         if (entry.diedDate != null) {
-            SharedPreferences prefs = context.getSharedPreferences("prefs", Context.MODE_PRIVATE);
             String format = prefs.getString("date_format", "MM/dd/yyyy");
             SimpleDateFormat sdf = new SimpleDateFormat(format, Locale.US);
             row.dateField.setText(sdf.format(entry.diedDate));
@@ -161,8 +161,10 @@ public class YahrzeitAdapter extends RecyclerView.Adapter<RecyclerView.ViewHolde
                         row.hebrewField.setText(heb);
                         row.inYearField.setText(inYear);
 
-                        if(!entry.name.isEmpty() && !entry.diedDate.toString().isEmpty())
+                        if(!entry.name.isEmpty() && !entry.diedDate.toString().isEmpty()) {
                             UserSettings.saveYahrzeitList(context, getEntries());
+                            listener.onEntryChanged(entry);
+                        }
                     }
                 }
 

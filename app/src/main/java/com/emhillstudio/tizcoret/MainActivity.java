@@ -1,6 +1,8 @@
 package com.emhillstudio.tizcoret;
 
 import androidx.core.app.ActivityCompat;
+import androidx.core.content.ContextCompat;
+import androidx.core.view.WindowCompat;
 import androidx.recyclerview.widget.LinearLayoutManager;
 import androidx.recyclerview.widget.RecyclerView;
 
@@ -22,7 +24,6 @@ import android.os.Build;
 import android.os.Bundle;
 import android.os.Looper;
 import android.provider.CalendarContract;
-import android.view.View;
 import android.widget.TextView;
 
 import com.google.android.gms.location.LocationCallback;
@@ -31,6 +32,7 @@ import com.google.android.gms.location.LocationResult;
 import com.google.android.material.button.MaterialButton;
 import com.google.android.gms.location.FusedLocationProviderClient;
 import com.google.android.gms.location.LocationServices;
+import com.google.gson.Gson;
 import com.kosherjava.zmanim.ZmanimCalendar;
 import com.kosherjava.zmanim.hebrewcalendar.HebrewDateFormatter;
 import com.kosherjava.zmanim.util.GeoLocation;
@@ -47,8 +49,10 @@ import java.time.temporal.TemporalAdjusters;
 import java.util.ArrayList;
 import java.util.Calendar;
 import java.util.Date;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Locale;
+import java.util.Map;
 import java.util.TimeZone;
 
 @SuppressLint("MissingPermission")
@@ -60,6 +64,8 @@ public class MainActivity extends MessageActivity {
     private YahrzeitAdapter yahrzeitAdapter;
     private String timeZoneId;
     private List<YahrzeitEntry> list = new ArrayList<>();
+    private SharedPreferences prefs;
+    private static final int REQ_CALENDAR = 100;
 
     @Override
     protected void onResume() {
@@ -71,6 +77,8 @@ public class MainActivity extends MessageActivity {
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_main);
+
+        prefs = getSharedPreferences(UserSettings.PREFS, MODE_PRIVATE);
 
         // -----------------------------
         //  UI references
@@ -105,12 +113,15 @@ public class MainActivity extends MessageActivity {
             maybeAskToAddShabbat();
         });
 
+        MaterialButton updateCalendarButton = findViewById(R.id.updateCalendarButton);
+
         // -----------------------------
         //  Yahrzeit table
         // -----------------------------
         yahrzeitList = findViewById(R.id.yahrzeitList);
         yahrzeitList.setLayoutManager(new LinearLayoutManager(this));
         yahrzeitAdapter = new YahrzeitAdapter(this, list, entry -> {
+            updateCalendarButton.setEnabled(!yahrzeitAdapter.getEntries().isEmpty());
             updateHebrewAndInYear(entry);
             yahrzeitAdapter.notifyDataSetChanged();
         });
@@ -118,26 +129,23 @@ public class MainActivity extends MessageActivity {
 
         List<YahrzeitEntry> saved = UserSettings.loadYahrzeitList(this);
         yahrzeitAdapter.setEntries(saved);
-
-        MaterialButton updateCalendarButton = findViewById(R.id.updateCalendarButton);
-
-        if (saved.isEmpty()) {
-            updateCalendarButton.setVisibility(View.GONE);
-        } else {
-            updateCalendarButton.setVisibility(View.VISIBLE);
-        }
-
         findViewById(R.id.addYahrzeitButton).setOnClickListener(v -> {
             yahrzeitAdapter.addEmptyRow();
         });
 
-        SharedPreferences prefs = getSharedPreferences("prefs", MODE_PRIVATE);
+        findViewById(R.id.cancelYahrzeitButton).setOnClickListener(v -> {
+            stopAllYahrzeits(this);
+        });
 
         if (!prefs.contains("date_format")) {
             prefs.edit().putString("date_format", "MM/dd/yyyy").apply();
         }
 
+        updateCalendarButton.setEnabled(!yahrzeitAdapter.getEntries().isEmpty());
+
         updateCalendarButton.setOnClickListener(v -> {
+            setCalendarPerms();
+
             SimpleDateFormat sdf = new SimpleDateFormat("MMM dd yyyy", Locale.US);
 
             for (YahrzeitEntry entry : yahrzeitAdapter.getEntries()) {
@@ -153,7 +161,7 @@ public class MainActivity extends MessageActivity {
                     ZmanimCalendar zc = buildZmanimCalendar();
                     zc.setCalendar(cal);
 
-                    Date candleLighting = zc.getSunset();
+                    Date candleLighting = zc.getCandleLighting();
                     String msg = entry.name.strip()+"'s Yahrzeit tomorrow. ";
                     if(insertCalendarEvent(candleLighting.getTime(), msg)) {
                         scheduleAlarm(candleLighting.getTime(), "yahrzeit",entry.diedDate);
@@ -183,8 +191,6 @@ public class MainActivity extends MessageActivity {
 
         timeZoneId = TimeZone.getDefault().getID();
 
-        ShabbatWorker.schedule(this);
-
         findViewById(R.id.buttonAbout).setOnClickListener(v -> {
             startActivity(new Intent(this, AboutActivity.class));
         });
@@ -196,6 +202,27 @@ public class MainActivity extends MessageActivity {
         findViewById(R.id.buttonSupport).setOnClickListener(v -> {
             startActivity(new Intent(this, SupportActivity.class));
         });
+        /*
+        WindowCompat.setDecorFitsSystemWindows(getWindow(), false);
+        View root = findViewById(R.id.root);
+        ViewCompat.setOnApplyWindowInsetsListener(root, (v, insets) -> {
+            int ime = insets.getInsets(WindowInsetsCompat.Type.ime()).bottom;
+            v.setPadding(0, 110, 0, 120);
+            return insets;
+        });
+        */
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+            if (ActivityCompat.checkSelfPermission(this, Manifest.permission.POST_NOTIFICATIONS)
+                    != PackageManager.PERMISSION_GRANTED) {
+
+                ActivityCompat.requestPermissions(
+                        this,
+                        new String[]{Manifest.permission.POST_NOTIFICATIONS},
+                        3001
+                );
+            }
+        }
+
 
         if (BuildConfig.DEBUG) {
             //UserSettings.setShabbatAlarmEnabled(this, false);
@@ -211,11 +238,44 @@ public class MainActivity extends MessageActivity {
             Uri uri = data.getParcelableExtra(RingtoneManager.EXTRA_RINGTONE_PICKED_URI);
 
             if (uri != null) {
-                getSharedPreferences("prefs", MODE_PRIVATE)
-                        .edit()
-                        .putString("alarm_ringtone", uri.toString())
-                        .apply();
+                prefs.edit().putString("alarm_ringtone", uri.toString()).apply();
             }
+        }
+    }
+
+    @Override
+    public void onRequestPermissionsResult(int requestCode, String[] permissions, int[] grantResults) {
+        super.onRequestPermissionsResult(requestCode, permissions, grantResults);
+
+        if (requestCode == 1001 && grantResults.length > 0 &&
+                grantResults[0] == PackageManager.PERMISSION_GRANTED) {
+            requestGpsCoordinates();
+        }
+        if (requestCode == REQ_CALENDAR) {
+            if (grantResults.length > 0 && grantResults[0] == PackageManager.PERMISSION_GRANTED) {
+            } else {
+                cancelAlarm(
+                        1001,
+                        ShabbatAlarmReceiver.class,
+                        AlarmService.class
+                );
+            }
+        }
+    }
+    private void setCalendarPerms() {
+        if (ActivityCompat.checkSelfPermission(this, Manifest.permission.WRITE_CALENDAR)
+                != PackageManager.PERMISSION_GRANTED ||
+                ActivityCompat.checkSelfPermission(this, Manifest.permission.READ_CALENDAR)
+                        != PackageManager.PERMISSION_GRANTED) {
+
+            ActivityCompat.requestPermissions(
+                    this,
+                    new String[]{
+                            Manifest.permission.READ_CALENDAR,
+                            Manifest.permission.WRITE_CALENDAR
+                    },
+                    2001
+            );
         }
     }
 
@@ -278,16 +338,6 @@ public class MainActivity extends MessageActivity {
         );
     }
 
-    @Override
-    public void onRequestPermissionsResult(int requestCode, String[] permissions, int[] grantResults) {
-        super.onRequestPermissionsResult(requestCode, permissions, grantResults);
-
-        if (requestCode == 1001 && grantResults.length > 0 &&
-                grantResults[0] == PackageManager.PERMISSION_GRANTED) {
-            requestGpsCoordinates();
-        }
-    }
-
     // -----------------------------
     //  Shabbat calendar insertion
     // -----------------------------
@@ -299,6 +349,7 @@ public class MainActivity extends MessageActivity {
             showQuestion("Add Shabbat Times",
                     "Would you like to add Shabbat times for next Friday to your calendar?",
                     () -> {
+                        ensureCalendarPermission();
                         addNextFridayShabbatEvents();
                     });
         }
@@ -340,11 +391,10 @@ public class MainActivity extends MessageActivity {
     }
 
 
-    void addNextFridayShabbatEvents() {
-        if (!BuildConfig.DEBUG) return;
-
+    private void addNextFridayShabbatEvents() {
         LocalDate friday = getNextFriday();
-        if (friday == null) return;
+        if (friday == null)
+            return;
 
         ZmanimCalendar zc = buildZmanimCalendar();
 
@@ -355,8 +405,12 @@ public class MainActivity extends MessageActivity {
         }
         zc.setCalendar(cal);
 
-        Date candleLighting = zc.getCandleLighting();
+        Date candleLighting = zc.getCandleLighting(); // your Date object
         if (candleLighting == null) return;
+
+        String formattedTime = new SimpleDateFormat("h:mm a", Locale.getDefault()).format(candleLighting);
+
+        prefs.edit().putString("candle_lighting_time", formattedTime).apply();
 
         long candleLightingMillis = candleLighting.getTime();
 
@@ -399,7 +453,7 @@ public class MainActivity extends MessageActivity {
         // 2. Add your 18-minute reminder
         ContentValues reminder = new ContentValues();
         reminder.put(CalendarContract.Reminders.EVENT_ID, eventId);
-        reminder.put(CalendarContract.Reminders.MINUTES, 18);
+        reminder.put(CalendarContract.Reminders.MINUTES, 5);
         reminder.put(CalendarContract.Reminders.METHOD, CalendarContract.Reminders.METHOD_ALERT);
 
         cr.insert(CalendarContract.Reminders.CONTENT_URI, reminder);
@@ -488,8 +542,10 @@ public class MainActivity extends MessageActivity {
     }
 
     private void scheduleAlarm(long candleLightingMillis, String event, Date diedDate) {
+
         long localCandle = toLocalMillis(candleLightingMillis);
-        long triggerAt = localCandle - 18 * 60 * 1000;
+
+        long triggerAt = localCandle - 5 * 60 * 1000;
 
         AlarmManager am = (AlarmManager) getSystemService(Context.ALARM_SERVICE);
 
@@ -512,13 +568,43 @@ public class MainActivity extends MessageActivity {
             return;
         }
 
-        Intent intent = new Intent(this, receiverClass);
+        // -----------------------------
+        // Build JSON payload
+        // -----------------------------
+        Map<String, Object> payload = new HashMap<>();
+        payload.put("event", event);
+        payload.put("event_id", requestCode);
 
-        SharedPreferences prefs = getSharedPreferences("prefs", MODE_PRIVATE);
-        String uriString = prefs.getString("ringtone_" + event, null);
-        intent.putExtra("ringtone_uri", uriString);
-        if ("yahrzeit".equals(event))
-            intent.putExtra("died_date", diedDate);
+        if ("shabbat".equals(event)) {
+
+            // Human-readable candle time for notification
+            String candleTimeStr = new SimpleDateFormat("h:mm a", Locale.getDefault())
+                    .format(new Date(candleLightingMillis));
+
+            payload.put("candle_time", candleTimeStr);
+
+            // Compute NEXT week's candle-lighting time
+            long nextWeekMillis = HebrewUtils.computeNextCandleLighting(this);
+
+            payload.put("next_candle_time", nextWeekMillis);
+
+        } else if ("yahrzeit".equals(event)) {
+
+            // Store died date for the receiver
+            payload.put("died_date", diedDate);
+
+            // Compute next year's yahrzeit trigger
+            long nextYearMillis = HebrewUtils.computeNextYahrzeit(this, diedDate);
+            payload.put("next_candle_time", nextYearMillis);
+        }
+
+        String json = new Gson().toJson(payload);
+
+        // -----------------------------
+        // Build Intent with JSON only
+        // -----------------------------
+        Intent intent = new Intent(this, receiverClass);
+        intent.putExtra("payload", json);
 
         PendingIntent pi = PendingIntent.getBroadcast(
                 this,
@@ -536,6 +622,48 @@ public class MainActivity extends MessageActivity {
         } catch (SecurityException e) {
             showMessage("Cannot schedule exact alarms. Enable permission in system settings.", false);
         }
+    }
+    public static void cancelAllYahrzeitAlarms(Context context) {
+        List<String> list = UserSettings.loadYahrzeitJsonList(context);
+        if (list == null || list.isEmpty()) return;
+
+        AlarmManager am = (AlarmManager) context.getSystemService(Context.ALARM_SERVICE);
+
+        for (String json : list) {
+            Map<String, Object> payload = new Gson().fromJson(json, Map.class);
+            int entryId = ((Number) payload.get("entry_id")).intValue();
+
+            // Cancel both offsets
+            for (int offset = 1; offset <= 2; offset++) {
+                int requestCode = entryId * 10 + offset;
+
+                Intent intent = new Intent(context, YahrzeitAlarmReceiver.class);
+                PendingIntent pi = PendingIntent.getBroadcast(
+                        context,
+                        requestCode,
+                        intent,
+                        PendingIntent.FLAG_UPDATE_CURRENT | PendingIntent.FLAG_IMMUTABLE
+                );
+
+                am.cancel(pi);
+            }
+        }
+    }
+    public static void stopYahrzeitService(Context context) {
+        Intent serviceIntent = new Intent(context, AlarmService.class);
+        context.stopService(serviceIntent);
+    }
+    public static void clearAllYahrzeitJson(Context context) {
+        context.getSharedPreferences(UserSettings.PREFS, MODE_PRIVATE)
+                .edit()
+                .remove("yahrzeit_json_list")
+                .apply();
+    }
+
+    public static void stopAllYahrzeits(Context context) {
+        cancelAllYahrzeitAlarms(context);
+        clearAllYahrzeitJson(context);
+        stopYahrzeitService(context);
     }
 
     private void cancelAlarm(
@@ -628,13 +756,16 @@ public class MainActivity extends MessageActivity {
         int hDay = jc.getJewishDayOfMonth();
         int hMonth = jc.getJewishMonth();
 
-        // Compute Gregorian date of this Hebrew date in the current civil year
-        int currentYear = Calendar.getInstance().get(Calendar.YEAR);
-
         JewishCalendar jc2 = new JewishCalendar();
-        jc2.setJewishDate(currentYear, hMonth, hDay);
+        int hYear = jc2.getJewishYear();
+        if (hMonth == JewishCalendar.ADAR_II && !jc2.isJewishLeapYear()) {
+            hMonth = JewishCalendar.ADAR;
+        }
+        JewishCalendar target = new JewishCalendar();
+        target.setJewishDate(hYear, hMonth, hDay);
 
-        Date greg = jc2.getGregorianCalendar().getTime();
+        Date greg = target.getGregorianCalendar().getTime();
+
         entry.inYear = new SimpleDateFormat("MMM d", Locale.getDefault()).format(greg);
 
         yahrzeitAdapter.notifyDataSetChanged();
@@ -651,12 +782,34 @@ public class MainActivity extends MessageActivity {
         startActivityForResult(intent, RINGTONE_REQUEST_CODE);
     }
     private void refreshYahrzeitList() {
-        // Reload your data (from DB, SharedPreferences, file, etc.)
         List<YahrzeitEntry> list = UserSettings.loadYahrzeitList(this);
 
         // Recreate adapter or update it
         yahrzeitAdapter.setEntries(list);
         yahrzeitAdapter.notifyDataSetChanged();
+    }
+    private void scheduleDebugAlarm() {
+        long now = System.currentTimeMillis();
+        // Fake candle-lighting time = now + 10 seconds + 5 minutes
+        long fakeCandleTime = now + 20*1000;
+
+        scheduleAlarm(fakeCandleTime, "shabbat", null);
+
+        showMessage("Debug alarm scheduled for 2 min from now", false);
+    }
+    private void ensureCalendarPermission() {
+        if (ContextCompat.checkSelfPermission(this, Manifest.permission.WRITE_CALENDAR)
+                != PackageManager.PERMISSION_GRANTED) {
+
+            ActivityCompat.requestPermissions(
+                    this,
+                    new String[]{
+                            Manifest.permission.READ_CALENDAR,
+                            Manifest.permission.WRITE_CALENDAR
+                    },
+                    REQ_CALENDAR
+            );
+        }
     }
 
 }

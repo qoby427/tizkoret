@@ -13,11 +13,14 @@ import org.json.JSONObject;
 
 import java.lang.reflect.Type;
 import java.util.ArrayList;
+import java.util.Iterator;
 import java.util.List;
+import java.util.Map;
 
 public class UserSettings {
 
-    private static final String PREFS = "tizcoret_settings";
+    public static final String PREFS = "prefs";
+    private static final String KEY_SHABBAT_JSON = "last_shabbat_json";
 
     private static final String KEY_LAT = "latitude";
     private static final String KEY_LNG = "longitude";
@@ -120,12 +123,10 @@ public class UserSettings {
         Gson gson = new Gson();
         String json = gson.toJson(list);
 
-        SharedPreferences prefs = context.getSharedPreferences("tizkoret", Context.MODE_PRIVATE);
-        prefs.edit().putString("yahrzeit_list", json).apply();
+        prefs(context).edit().putString("yahrzeit_list", json).apply();
     }
     public static List<YahrzeitEntry> loadYahrzeitList(Context context) {
-        SharedPreferences prefs = context.getSharedPreferences("tizkoret", Context.MODE_PRIVATE);
-        String json = prefs.getString("yahrzeit_list", null);
+        String json = prefs(context).getString("yahrzeit_list", null);
 
         if (json == null) return new ArrayList<>();
 
@@ -152,6 +153,49 @@ public class UserSettings {
         }
 
         saveYahrzeitList(ctx, newArr);
+    }
+    public static void setLastShabbatJson(Context context, String json) {
+        prefs(context)
+                .edit()
+                .putString(KEY_SHABBAT_JSON, json)
+                .apply();
+    }
+
+    public static String getLastShabbatJson(Context context) {
+        return prefs(context).getString(KEY_SHABBAT_JSON, null);
+    }
+    public static void saveYahrzeitJson(Context context, String json) {
+        // Load existing list
+        List<String> list = loadYahrzeitJsonList(context);
+        if (list == null) list = new ArrayList<>();
+
+        // Parse new payload
+        Map<String, Object> newPayload = new Gson().fromJson(json, Map.class);
+        int newId = ((Number) newPayload.get("entry_id")).intValue();
+
+        // Remove any existing entry with the same entry_id
+        Iterator<String> it = list.iterator();
+        while (it.hasNext()) {
+            Map<String, Object> p = new Gson().fromJson(it.next(), Map.class);
+            int id = ((Number) p.get("entry_id")).intValue();
+            if (id == newId) {
+                it.remove();
+                break;
+            }
+        }
+
+        // Add the new JSON
+        list.add(json);
+
+        // Save back
+        prefs(context).edit().putString("yahrzeit_json_list", new Gson().toJson(list)).apply();
+    }
+    public static List<String> loadYahrzeitJsonList(Context context) {
+        String json = prefs(context).getString("yahrzeit_json_list", null);
+        if (json == null) return new ArrayList<>();
+
+        Type type = new TypeToken<List<String>>(){}.getType();
+        return new Gson().fromJson(json, type);
     }
 
     // -----------------------------
