@@ -47,7 +47,7 @@
                 android:text="Shabbat"
                 android:textSize="20sp"
                 android:textStyle="bold"
-                android:paddingBottom="12dp"/>
+                android:paddingBottom="0dp"/>
 
             <LinearLayout
                 android:orientation="horizontal"
@@ -83,7 +83,8 @@
         <!-- This was the original structure: NO ScrollView -->
         <LinearLayout
             android:orientation="vertical"
-            android:padding="16dp"
+            android:paddingBottom="0dp"
+            android:paddingLeft="12dp"
             android:layout_width="match_parent"
             android:layout_height="match_parent">
 
@@ -94,7 +95,8 @@
                 android:text="Yahrzeit"
                 android:textSize="20sp"
                 android:textStyle="bold"
-                android:paddingBottom="12dp"/>
+                android:paddingBottom="0dp"
+                android:paddingLeft="0dp"/>
 
             <LinearLayout
                 android:id="@+id/yahrzeitHeader"
