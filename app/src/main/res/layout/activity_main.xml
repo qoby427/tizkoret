@@ -151,30 +151,46 @@
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
                 android:orientation="horizontal"
-                android:gravity="center"
-                android:paddingTop="12dp"
-                android:paddingBottom="12dp">
+                android:paddingTop="0dp"
+                android:paddingBottom="0dp">
 
                 <com.google.android.material.button.MaterialButton
                     android:id="@+id/addYahrzeitButton"
                     android:layout_width="0dp"
                     android:layout_height="wrap_content"
                     android:layout_weight="1"
-                    android:text="Add Yahrzeit"
-                    style="@style/Widget.Material3.Button" />
+                    android:minWidth="0dp"
+                    android:paddingHorizontal="0dp"
+                    app:iconPadding="0dp"
+                    android:text="Add Yahrzeit" />
 
                 <View
+                    android:layout_width="12dp"
+                    android:layout_height="0dp" />
+
+                <com.google.android.material.button.MaterialButton
+                    android:id="@+id/cancelYahrzeitButton"
                     android:layout_width="0dp"
-                    android:layout_height="0dp"
-                    android:layout_weight="1"/>
+                    android:layout_height="wrap_content"
+                    android:layout_weight="1"
+                    android:minWidth="0dp"
+                    android:paddingHorizontal="0dp"
+                    app:iconPadding="0dp"
+                    android:text="Stop Service" />
+
+                <View
+                    android:layout_width="12dp"
+                    android:layout_height="0dp" />
 
                 <com.google.android.material.button.MaterialButton
                     android:id="@+id/updateCalendarButton"
                     android:layout_width="0dp"
                     android:layout_height="wrap_content"
                     android:layout_weight="1"
-                    android:text="Update Calendar"
-                    style="@style/Widget.Material3.Button" />
+                    android:minWidth="0dp"
+                    android:paddingHorizontal="0dp"
+                    app:iconPadding="0dp"
+                    android:text="Update Calendar" />
             </LinearLayout>
 
         </LinearLayout>
