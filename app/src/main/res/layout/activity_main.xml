@@ -4,8 +4,7 @@
     android:id="@+id/root"
     android:orientation="vertical"
     android:layout_width="match_parent"
-    android:layout_height="match_parent"
-    android:padding="16dp">
+    android:layout_height="match_parent">
 
     <!-- Title -->
     <TextView
@@ -33,7 +32,7 @@
         android:layout_height="wrap_content"
         android:layout_marginBottom="16dp"
         app:cardElevation="4dp"
-        app:cardUseCompatPadding="true">
+        app:cardUseCompatPadding="false">
 
         <LinearLayout
             android:orientation="vertical"
@@ -73,135 +72,123 @@
         </LinearLayout>
     </androidx.cardview.widget.CardView>
 
-    <!-- Yahrzeit Scrollable Section -->
+    <!-- Yahrzeit Section (middle card, flexible) -->
     <androidx.cardview.widget.CardView
         android:layout_width="match_parent"
         android:layout_height="0dp"
         android:layout_weight="1"
         app:cardElevation="4dp"
-        app:cardUseCompatPadding="true">
+        app:cardUseCompatPadding="false">
 
-        <ScrollView
+        <!-- This was the original structure: NO ScrollView -->
+        <LinearLayout
+            android:orientation="vertical"
+            android:padding="16dp"
             android:layout_width="match_parent"
-            android:layout_height="match_parent"
-            android:fillViewport="true">
+            android:layout_height="match_parent">
 
-            <RelativeLayout
+            <TextView
+                android:id="@+id/yahrzeitTitle"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="Yahrzeit"
+                android:textSize="20sp"
+                android:textStyle="bold"
+                android:paddingBottom="12dp"/>
+
+            <LinearLayout
+                android:id="@+id/yahrzeitHeader"
                 android:layout_width="match_parent"
-                android:layout_height="match_parent"
-                android:padding="16dp">
+                android:layout_height="wrap_content"
+                android:orientation="horizontal"
+                android:paddingBottom="8dp">
 
-                <!-- Scrollable content -->
-                <LinearLayout
-                    android:id="@+id/yahrzeitContent"
-                    android:orientation="vertical"
-                    android:layout_width="match_parent"
+                <TextView
+                    android:layout_width="0dp"
                     android:layout_height="wrap_content"
-                    android:layout_alignParentTop="true"
-                    android:layout_above="@id/yahrzeitButtonRow">
+                    android:layout_weight="1"
+                    android:text="Name"
+                    android:textStyle="bold"
+                    android:textSize="14sp"/>
 
-                    <TextView
-                        android:id="@+id/yahrzeitTitle"
-                        android:layout_width="wrap_content"
-                        android:layout_height="wrap_content"
-                        android:text="Yahrzeit"
-                        android:textSize="20sp"
-                        android:textStyle="bold"
-                        android:paddingBottom="12dp"/>
-
-                    <LinearLayout
-                        android:id="@+id/yahrzeitHeader"
-                        android:layout_width="match_parent"
-                        android:layout_height="wrap_content"
-                        android:orientation="horizontal"
-                        android:paddingBottom="8dp">
-
-                        <TextView
-                            android:layout_width="0dp"
-                            android:layout_height="wrap_content"
-                            android:layout_weight="1"
-                            android:text="Name"
-                            android:textStyle="bold"
-                            android:textSize="14sp"/>
-
-                        <TextView
-                            android:layout_width="0dp"
-                            android:layout_height="wrap_content"
-                            android:layout_weight="1"
-                            android:text="Passed"
-                            android:textStyle="bold"
-                            android:textSize="14sp"/>
-
-                        <TextView
-                            android:layout_width="0dp"
-                            android:layout_height="wrap_content"
-                            android:layout_weight="1"
-                            android:text="Hebrew"
-                            android:textStyle="bold"
-                            android:textSize="14sp"/>
-
-                        <TextView
-                            android:id="@+id/headerInYear"
-                            android:layout_width="0dp"
-                            android:layout_height="wrap_content"
-                            android:layout_weight="1"
-                            android:text="In Year"
-                            android:textStyle="bold"
-                            android:textSize="14sp"/>
-                    </LinearLayout>
-
-                    <androidx.recyclerview.widget.RecyclerView
-                        android:id="@+id/yahrzeitList"
-                        android:layout_width="match_parent"
-                        android:layout_height="wrap_content"
-                        android:nestedScrollingEnabled="false"
-                        android:scrollbars="vertical"/>
-                </LinearLayout>
-
-                <!-- Buttons pinned to bottom INSIDE ScrollView -->
-                <LinearLayout
-                    android:id="@+id/yahrzeitButtonRow"
-                    android:layout_width="match_parent"
+                <TextView
+                    android:layout_width="0dp"
                     android:layout_height="wrap_content"
-                    android:orientation="horizontal"
-                    android:gravity="center"
-                    android:paddingTop="12dp"
-                    android:paddingBottom="12dp"
-                    android:layout_alignParentBottom="true">
+                    android:layout_weight="1"
+                    android:text="Passed"
+                    android:textStyle="bold"
+                    android:textSize="14sp"/>
 
-                    <com.google.android.material.button.MaterialButton
-                        android:id="@+id/addYahrzeitButton"
-                        android:layout_width="0dp"
-                        android:layout_height="wrap_content"
-                        android:layout_weight="1"
-                        android:text="Add Yahrzeit"
-                        style="@style/Widget.Material3.Button" />
+                <TextView
+                    android:layout_width="0dp"
+                    android:layout_height="wrap_content"
+                    android:layout_weight="1"
+                    android:text="Hebrew"
+                    android:textStyle="bold"
+                    android:textSize="14sp"/>
 
-                    <View
-                        android:layout_width="0dp"
-                        android:layout_height="0dp"
-                        android:layout_weight="1"/>
+                <TextView
+                    android:id="@+id/headerInYear"
+                    android:layout_width="0dp"
+                    android:layout_height="wrap_content"
+                    android:layout_weight="1"
+                    android:text="In Year"
+                    android:textStyle="bold"
+                    android:textSize="14sp"/>
+            </LinearLayout>
 
-                    <com.google.android.material.button.MaterialButton
-                        android:id="@+id/updateCalendarButton"
-                        android:layout_width="0dp"
-                        android:layout_height="wrap_content"
-                        android:layout_weight="1"
-                        android:text="Update Calendar"
-                        style="@style/Widget.Material3.Button" />
-                </LinearLayout>
+            <!-- RecyclerView scrolls; no ScrollView needed -->
+            <androidx.recyclerview.widget.RecyclerView
+                android:id="@+id/yahrzeitList"
+                android:layout_width="match_parent"
+                android:layout_height="0dp"
+                android:layout_weight="1"
+                android:scrollbars="vertical"/>
 
-            </RelativeLayout>
-        </ScrollView>
+            <!-- Buttons at bottom of card -->
+            <LinearLayout
+                android:id="@+id/yahrzeitButtonRow"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:orientation="horizontal"
+                android:gravity="center"
+                android:paddingTop="12dp"
+                android:paddingBottom="12dp">
+
+                <com.google.android.material.button.MaterialButton
+                    android:id="@+id/addYahrzeitButton"
+                    android:layout_width="0dp"
+                    android:layout_height="wrap_content"
+                    android:layout_weight="1"
+                    android:text="Add Yahrzeit"
+                    style="@style/Widget.Material3.Button" />
+
+                <View
+                    android:layout_width="0dp"
+                    android:layout_height="0dp"
+                    android:layout_weight="1"/>
+
+                <com.google.android.material.button.MaterialButton
+                    android:id="@+id/updateCalendarButton"
+                    android:layout_width="0dp"
+                    android:layout_height="wrap_content"
+                    android:layout_weight="1"
+                    android:text="Update Calendar"
+                    style="@style/Widget.Material3.Button" />
+            </LinearLayout>
+
+        </LinearLayout>
     </androidx.cardview.widget.CardView>
 
     <!-- Bottom Panel (fixed) -->
     <androidx.cardview.widget.CardView
+        android:id="@+id/bottomCard"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
         android:layout_marginTop="12dp"
+        android:layout_marginBottom="12dp"
         app:cardElevation="4dp"
-        app:cardUseCompatPadding="true">
+        app:cardUseCompatPadding="false">
 
         <LinearLayout
             android:layout_width="match_parent"
@@ -238,9 +225,7 @@
                 android:layout_weight="1"
                 android:text="Support"
                 style="@style/Widget.Material3.Button" />
-
         </LinearLayout>
-
     </androidx.cardview.widget.CardView>
 
 </LinearLayout>
