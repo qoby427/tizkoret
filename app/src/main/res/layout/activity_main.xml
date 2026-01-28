@@ -100,7 +100,7 @@
                     android:layout_width="0dp"
                     android:layout_height="wrap_content"
                     android:layout_weight="1"
-                    android:text="Name"
+                    android:text="Loved One"
                     android:textStyle="bold"
                     android:textSize="14sp"/>
 
@@ -140,7 +140,6 @@
 
             <!-- Buttons at bottom of card -->
             <LinearLayout
-                android:id="@+id/yahrzeitButtonRow"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
                 android:orientation="horizontal"
@@ -148,25 +147,30 @@
                 android:paddingStart="0dp"
                 android:paddingEnd="12dp"
                 android:paddingTop="12dp"
-                android:paddingBottom="12dp">
+                android:paddingBottom="12dp"
+                android:layout_marginStart="4dp"
+                android:layout_marginEnd="4dp">
 
                 <com.google.android.material.button.MaterialButton
                     android:id="@+id/addYahrzeitButton"
                     android:layout_width="0dp"
                     android:layout_height="wrap_content"
                     android:layout_weight="1"
-                    android:text="Add Yahrzeit"
-                     />
+                    android:paddingEnd="12dp"
+                    android:textSize="12sp"
+                    android:layout_marginStart="0dp"
+                    android:layout_marginEnd="8dp"
+                    android:text="Add Yahrzeit"/>
 
                 <com.google.android.material.button.MaterialButton
                     android:id="@+id/cancelYahrzeitButton"
                     android:layout_width="0dp"
                     android:layout_height="wrap_content"
                     android:layout_weight="1"
+                    android:textSize="12sp"
                     android:layout_marginStart="8dp"
                     android:layout_marginEnd="8dp"
-                    android:text="Stop Service"
-                     />
+                    android:text="Stop Service"/>
 
                 <com.google.android.material.button.MaterialButton
                     android:id="@+id/updateCalendarButton"
@@ -174,10 +178,10 @@
                     android:layout_height="wrap_content"
                     android:layout_weight="1"
                     android:minWidth="0dp"
+                    android:textSize="12sp"
+                    android:layout_marginStart="8dp"
                     android:paddingHorizontal="0dp"
-                    app:iconPadding="0dp"
-                    android:text="Update Calendar"
-                     />
+                    android:text="Update Calendar"/>
             </LinearLayout>
 
         </LinearLayout>
@@ -198,10 +202,12 @@
             android:layout_height="wrap_content"
             android:orientation="horizontal"
             android:gravity="center"
+            android:paddingStart="0dp"
+            android:paddingEnd="12dp"
             android:paddingTop="12dp"
             android:paddingBottom="12dp"
-            android:layout_marginStart="8dp"
-            android:layout_marginEnd="8dp">
+            android:layout_marginStart="4dp"
+            android:layout_marginEnd="4dp">
 
             <com.google.android.material.button.MaterialButton
                 android:id="@+id/buttonAbout"
@@ -209,6 +215,9 @@
                 android:layout_height="wrap_content"
                 android:layout_weight="1"
                 android:text="About"
+                android:textSize="12sp"
+                android:layout_marginStart="8dp"
+                android:layout_marginEnd="8dp"
                 style="@style/Widget.Material3.Button" />
 
             <com.google.android.material.button.MaterialButton
@@ -217,6 +226,7 @@
                 android:layout_height="wrap_content"
                 android:layout_weight="1"
                 android:text="Customize"
+                android:textSize="12sp"
                 android:layout_marginStart="8dp"
                 android:layout_marginEnd="8dp"
                 style="@style/Widget.Material3.Button" />
@@ -227,6 +237,8 @@
                 android:layout_height="wrap_content"
                 android:layout_weight="1"
                 android:text="Support"
+                android:layout_marginStart="8dp"
+                android:textSize="12sp"
                 style="@style/Widget.Material3.Button" />
         </LinearLayout>
     </androidx.cardview.widget.CardView>

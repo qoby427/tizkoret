@@ -64,7 +64,7 @@ public class MainActivity extends MessageActivity {
     private YahrzeitAdapter yahrzeitAdapter;
     private String timeZoneId;
     private List<YahrzeitEntry> list = new ArrayList<>();
-    private SharedPreferences prefs;
+    private static SharedPreferences prefs;
     private static final int REQ_CALENDAR = 100;
 
     @Override
@@ -135,7 +135,7 @@ public class MainActivity extends MessageActivity {
         });
 
         findViewById(R.id.cancelYahrzeitButton).setOnClickListener(v -> {
-            stopAllYahrzeits(this);
+            stopAllYahrzeits();
         });
 
         if (!prefs.contains("date_format")) {
@@ -623,11 +623,19 @@ public class MainActivity extends MessageActivity {
             showMessage("Cannot schedule exact alarms. Enable permission in system settings.", false);
         }
     }
-    public static void cancelAllYahrzeitAlarms(Context context) {
-        List<String> list = UserSettings.loadYahrzeitJsonList(context);
+
+    // -------------------------- Stop Services ------------------------------------------------------
+    public void stopAllYahrzeits() {
+        cancelAllYahrzeitAlarms();
+        UserSettings.clearAllYahrzeitJson(this);
+        stopYahrzeitService();
+        showMessage("Yahrzeit service stopped.\nUpdate calendar to restore it", true);
+    }
+    private void cancelAllYahrzeitAlarms() {
+        List<String> list = UserSettings.loadYahrzeitJsonList(this);
         if (list == null || list.isEmpty()) return;
 
-        AlarmManager am = (AlarmManager) context.getSystemService(Context.ALARM_SERVICE);
+        AlarmManager am = (AlarmManager) getSystemService(Context.ALARM_SERVICE);
 
         for (String json : list) {
             Map<String, Object> payload = new Gson().fromJson(json, Map.class);
@@ -637,9 +645,9 @@ public class MainActivity extends MessageActivity {
             for (int offset = 1; offset <= 2; offset++) {
                 int requestCode = entryId * 10 + offset;
 
-                Intent intent = new Intent(context, YahrzeitAlarmReceiver.class);
+                Intent intent = new Intent(this, YahrzeitAlarmReceiver.class);
                 PendingIntent pi = PendingIntent.getBroadcast(
-                        context,
+                        this,
                         requestCode,
                         intent,
                         PendingIntent.FLAG_UPDATE_CURRENT | PendingIntent.FLAG_IMMUTABLE
@@ -649,23 +657,10 @@ public class MainActivity extends MessageActivity {
             }
         }
     }
-    public static void stopYahrzeitService(Context context) {
-        Intent serviceIntent = new Intent(context, AlarmService.class);
-        context.stopService(serviceIntent);
+    private void stopYahrzeitService() {
+        Intent serviceIntent = new Intent(this, AlarmService.class);
+        stopService(serviceIntent);
     }
-    public static void clearAllYahrzeitJson(Context context) {
-        context.getSharedPreferences(UserSettings.PREFS, MODE_PRIVATE)
-                .edit()
-                .remove("yahrzeit_json_list")
-                .apply();
-    }
-
-    public static void stopAllYahrzeits(Context context) {
-        cancelAllYahrzeitAlarms(context);
-        clearAllYahrzeitJson(context);
-        stopYahrzeitService(context);
-    }
-
     private void cancelAlarm(
             int requestCode,
             Class<?> receiverClass,

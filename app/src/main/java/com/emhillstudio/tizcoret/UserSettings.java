@@ -98,17 +98,11 @@ public class UserSettings {
             obj.put("name", name);
             obj.put("civilDate", civilDate);
             obj.put("hebrewDate", hebrewDate);
+
             arr.put(obj);
         } catch (JSONException ignored) {}
 
         saveYahrzeitList(ctx, arr);
-    }
-    public static void saveYahrzeitName(Context ctx, YahrzeitEntry entry) {
-        saveYahrzeitEntry(ctx, entry);
-    }
-
-    public static void saveYahrzeitEntry(Context ctx, YahrzeitEntry entry) {
-        // Load list, replace entry, save list back
     }
     public static void saveYahrzeitList(Context context, List<YahrzeitEntry> list) {
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.N) {
@@ -120,10 +114,10 @@ public class UserSettings {
         Gson gson = new Gson();
         String json = gson.toJson(list);
 
-        prefs(context).edit().putString("yahrzeit_list", json).apply();
+        prefs(context).edit().putString(KEY_YAHRZEIT_LIST, json).apply();
     }
     public static List<YahrzeitEntry> loadYahrzeitList(Context context) {
-        String json = prefs(context).getString("yahrzeit_list", null);
+        String json = prefs(context).getString(KEY_YAHRZEIT_LIST, null);
 
         if (json == null) return new ArrayList<>();
 
@@ -193,6 +187,9 @@ public class UserSettings {
 
         Type type = new TypeToken<List<String>>(){}.getType();
         return new Gson().fromJson(json, type);
+    }
+    public static void clearAllYahrzeitJson(Context context) {
+        prefs(context).edit().remove(UserSettings.KEY_YAHRZEIT_LIST).apply();
     }
     public static Uri getYahrzeitRingtone(Context context) {
         String uriString = prefs(context).getString("yahrzeit_ringtone", null);
