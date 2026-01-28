@@ -18,40 +18,56 @@
 
     <!-- Exact alarm permission (Android 12+) -->
     <uses-permission android:name="android.permission.SCHEDULE_EXACT_ALARM"/>
+    <uses-permission android:name="android.permission.RECEIVE_BOOT_COMPLETED"/>
+    <uses-permission android:name="android.permission.POST_NOTIFICATIONS"/>
 
     <application
-        android:allowBackup="true"
+        android:name=".App"
         android:icon="@mipmap/ic_launcher"
         android:label="@string/app_name"
         android:roundIcon="@mipmap/ic_launcher_round"
         android:supportsRtl="true"
+        android:allowBackup="false"
         android:theme="@style/Theme.Tizkoret">
 
-        <!-- Main activity -->
+        <!-- Main Activity -->
         <activity
             android:name=".MainActivity"
-            android:exported="true">
+            android:exported="true"
+            android:windowSoftInputMode="adjustResize|stateHidden">
+
             <intent-filter>
                 <action android:name="android.intent.action.MAIN"/>
                 <category android:name="android.intent.category.LAUNCHER"/>
             </intent-filter>
         </activity>
 
-        <!-- Alarm receivers -->
+        <!-- Alarm Receiver -->
         <receiver
             android:name=".ShabbatAlarmReceiver"
             android:exported="false" />
-
         <receiver
-            android:name=".StopAlarmReceiver"
+            android:name=".YahrzeitAlarmReceiver"
             android:exported="false" />
+        <receiver
+            android:name=".BootReceiver"
+            android:exported="false">
+            <intent-filter>
+                <action android:name="android.intent.action.BOOT_COMPLETED"/>
+            </intent-filter>
+        </receiver>
+        <receiver
+            android:name=".FridayNotificationReceiver"
+            android:exported="true" />
 
-        <!-- Foreground service -->
+
+        <!-- Foreground Service for alarm playback -->
         <service
-            android:name=".ShabbatAlarmService"
+            android:name=".AlarmService"
             android:exported="false"
             android:foregroundServiceType="mediaPlayback" />
-
+        <activity android:name=".AboutActivity" />
+        <activity android:name=".SupportActivity" />
+        <activity android:name=".CustomizeActivity" />
     </application>
-
 </manifest>

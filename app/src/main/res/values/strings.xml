@@ -1,3 +1,28 @@
 <resources>
     <string name="app_name">Tizcoret</string>
+    <string name="about_text"><![CDATA[
+<h1>About Tizcóret</h1>
+
+<p>
+Tizcóret is designed to help you remember the moments that matter.<br>
+It provides simple, reliable reminders for Shabbat candle lighting and
+Yahrzeit dates.
+</p>
+
+<p>
+The app focuses on clarity, accuracy, and ease of use.<br>
+No clutter, no distractions — just the tools you need to stay connected
+to tradition and memory.
+</p>
+
+<p>
+Tizcóret is built with care and respect for the values it supports.<br>
+Thank you for using it and being part of its journey.
+</p>
+Version: %1$s<br><br>
+
+    Toda raba for using Tizcóret. Shalom.<br><br><br><br>
+    © 2025 Emerson Hill Studio
+]]></string>
+
 </resources>

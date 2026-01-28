@@ -1,0 +1,91 @@
+<?xml version="1.0" encoding="utf-8"?>
+<ScrollView xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:padding="16dp">
+
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="vertical">
+
+        <!-- Header -->
+        <TextView
+            android:id="@+id/supportTitle"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:textSize="22sp"
+            android:textStyle="bold"
+            android:paddingBottom="12dp" />
+
+        <!-- Description -->
+        <TextView
+            android:id="@+id/supportDescription"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:textSize="16sp"
+            android:paddingBottom="24dp" />
+
+        <!-- Donation Circles -->
+        <LinearLayout
+            android:id="@+id/donationContainer"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:gravity="center"
+            android:orientation="horizontal"
+            android:layout_marginBottom="32dp">
+
+            <!-- $1 Small -->
+            <com.google.android.material.button.MaterialButton
+                android:id="@+id/btnDonateSmall"
+                android:layout_width="72dp"
+                android:layout_height="72dp"
+                android:text="$1"
+                android:textSize="18sp"
+                android:gravity="center"
+                app:shapeAppearanceOverlay="@style/CircleButtonShape"
+                android:layout_marginEnd="16dp" />
+
+            <!-- $5 Medium -->
+            <com.google.android.material.button.MaterialButton
+                android:id="@+id/btnDonateMedium"
+                android:layout_width="88dp"
+                android:layout_height="88dp"
+                android:text="$5"
+                android:textSize="20sp"
+                android:gravity="center"
+                app:shapeAppearanceOverlay="@style/CircleButtonShape"
+                android:layout_marginEnd="16dp" />
+
+            <!-- $10 Large -->
+            <com.google.android.material.button.MaterialButton
+                android:id="@+id/btnDonateLarge"
+                android:layout_width="104dp"
+                android:layout_height="104dp"
+                android:text="$10"
+                android:textSize="22sp"
+                android:gravity="center"
+                app:shapeAppearanceOverlay="@style/CircleButtonShape" />
+
+        </LinearLayout>
+
+        <!-- Footer -->
+        <TextView
+            android:id="@+id/supportFooter"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="Your support is greatly appreciated.\n\n© 2025 Emerson Hill Studio"
+            android:textSize="20sp"
+            android:textStyle="bold"
+            android:gravity="center"
+            android:paddingStart="24dp"
+            android:paddingEnd="24dp"
+            android:lineSpacingExtra="6dp"
+            android:layout_marginTop="24dp"
+            android:textColor="@color/text_on_blue"
+            android:paddingTop="12dp" />
+
+    </LinearLayout>
+
+</ScrollView>

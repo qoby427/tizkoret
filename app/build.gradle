@@ -2,6 +2,41 @@ plugins {
     id 'com.android.application'
 }
 
+def getVersionCode() {
+    def versionPropsFile = file("version.properties")
+    if (!versionPropsFile.exists()) {
+        versionPropsFile.createNewFile()
+        versionPropsFile.text = "VERSION_CODE=5"
+    }
+
+    def props = new Properties()
+    props.load(new FileInputStream(versionPropsFile))
+
+    def code = props["VERSION_CODE"].toInteger()
+
+    def isReleaseBuild = gradle.startParameter.taskNames.any {
+        it.toLowerCase().contains("release")
+    }
+
+    if (isReleaseBuild) {
+        code++
+        props["VERSION_CODE"] = code.toString()
+        props.store(new FileOutputStream(versionPropsFile), null)
+    }
+
+    return code
+}
+
+def generateVersionName(int versionCode) {
+    def now = java.time.LocalDate.now()
+    def day = String.format("%02d", now.dayOfMonth)
+    def month = String.format("%02d", now.monthValue)
+
+    return "1.${day}${month}.${versionCode}"
+}
+def computedVersionCode = getVersionCode()
+def computedVersionName= generateVersionName(computedVersionCode)
+
 android {
     namespace 'com.emhillstudio.tizcoret'
     compileSdk 36
@@ -10,8 +45,8 @@ android {
         applicationId "com.emhillstudio.tizcoret"
         minSdk 23
         targetSdk 36
-        versionCode 1
-        versionName "1.0"
+        versionCode computedVersionCode
+        versionName computedVersionName
 
         testInstrumentationRunner "androidx.test.runner.AndroidJUnitRunner"
     }
@@ -36,11 +71,9 @@ android {
 dependencies {
     implementation libs.appcompat
     implementation libs.appcompat.v170
-    implementation libs.material
     implementation libs.activity
     implementation libs.constraintlayout.v214
     implementation libs.play.services.location
-    implementation libs.zmanim
     implementation libs.geo
     implementation libs.timezonemap.utils
     implementation libs.timezonemap.builder
@@ -48,18 +81,17 @@ dependencies {
     implementation libs.zstd.jni
     implementation libs.play.services.location.v2101
     implementation libs.timeshape.v2023a10
-    implementation libs.zmanim.v115
+    implementation libs.work.runtime
+    implementation "com.android.billingclient:billing:6.1.0"
+    implementation "com.kosherjava:zmanim:2.5.0"
+    implementation libs.gson
+    implementation libs.material.v1130
+
+    implementation(libs.timeshape.v2025b26) {
+        exclude group: "com.github.luben", module: "zstd-jni"
+    }
 
     testImplementation libs.junit
     androidTestImplementation libs.ext.junit
     androidTestImplementation libs.espresso.core
 }
-
-dependencies {
-    implementation libs.work.runtime
-    implementation(libs.timeshape.v2025b26) {
-        exclude group: "com.github.luben", module: "zstd-jni"
-    }
-}
-
-

@@ -4,6 +4,8 @@ import android.content.Context;
 
 import androidx.annotation.NonNull;
 import androidx.work.ExistingPeriodicWorkPolicy;
+import androidx.work.ExistingWorkPolicy;
+import androidx.work.OneTimeWorkRequest;
 import androidx.work.PeriodicWorkRequest;
 import androidx.work.WorkManager;
 import androidx.work.Worker;
@@ -13,17 +15,14 @@ import java.util.Calendar;
 import java.util.concurrent.TimeUnit;
 
 public class ShabbatWorker extends Worker {
-
-    MainActivity context;
-    public ShabbatWorker(@NonNull MainActivity context, @NonNull WorkerParameters params) {
+    public ShabbatWorker(@NonNull Context context, @NonNull WorkerParameters params) {
         super(context, params);
-        this.context = context;
     }
 
     @NonNull
     @Override
     public Result doWork() {
-        context.addNextFridayShabbatEvents();
+        long candleLightingMillis = HebrewUtils.computeNextCandleLighting(getApplicationContext());
         return Result.success();
     }
 
@@ -45,13 +44,19 @@ public class ShabbatWorker extends Worker {
 
         long initialDelay = cal.getTimeInMillis() - System.currentTimeMillis();
 
+        OneTimeWorkRequest immediate = new OneTimeWorkRequest.Builder(ShabbatWorker.class).build();
+
+        WorkManager.getInstance(context)
+                .enqueueUniqueWork(
+                        "ShabbatWorkerImmediate",
+                        ExistingWorkPolicy.REPLACE,
+                        immediate
+                );
+
         PeriodicWorkRequest request =
-                new PeriodicWorkRequest.Builder(
-                        ShabbatWorker.class,
-                        7, TimeUnit.DAYS
-                )
-                        .setInitialDelay(initialDelay, TimeUnit.MILLISECONDS)
-                        .build();
+                new PeriodicWorkRequest.Builder(ShabbatWorker.class,7, TimeUnit.DAYS)
+                    .setInitialDelay(initialDelay, TimeUnit.MILLISECONDS)
+                    .build();
 
         WorkManager.getInstance(context).enqueueUniquePeriodicWork(
                 "ShabbatWorker",

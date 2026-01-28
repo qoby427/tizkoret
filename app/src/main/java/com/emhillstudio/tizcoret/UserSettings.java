@@ -2,23 +2,31 @@ package com.emhillstudio.tizcoret;
 
 import android.content.Context;
 import android.content.SharedPreferences;
+import android.media.RingtoneManager;
+import android.net.Uri;
+import android.os.Build;
+
+import com.google.gson.Gson;
+import com.google.gson.reflect.TypeToken;
 
 import org.json.JSONArray;
 import org.json.JSONException;
 import org.json.JSONObject;
 
+import java.lang.reflect.Type;
+import java.util.ArrayList;
+import java.util.Iterator;
+import java.util.List;
+import java.util.Map;
+
 public class UserSettings {
 
-    private static final String PREFS = "tizcoret_settings";
-
+    public static final String PREFS = "prefs";
+    private static final String KEY_SHABBAT_JSON = "last_shabbat_json";
     private static final String KEY_LAT = "latitude";
     private static final String KEY_LNG = "longitude";
-
     private static final String KEY_SHABBAT_ALARM = "shabbat_alarm_enabled";
-
     private static final String KEY_YAHRZEIT_LIST = "yahrzeit_list";
-
-    // ⭐ NEW: store next scheduled alarm time
     private static final String KEY_NEXT_ALARM = "next_alarm_time";
 
     // -----------------------------
@@ -95,6 +103,41 @@ public class UserSettings {
 
         saveYahrzeitList(ctx, arr);
     }
+    public static void saveYahrzeitName(Context ctx, YahrzeitEntry entry) {
+        saveYahrzeitEntry(ctx, entry);
+    }
+
+    public static void saveYahrzeitEntry(Context ctx, YahrzeitEntry entry) {
+        // Load list, replace entry, save list back
+    }
+    public static void saveYahrzeitList(Context context, List<YahrzeitEntry> list) {
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.N) {
+            list.removeIf(e ->
+                    e.name == null || e.name.trim().isEmpty() ||
+                            e.diedDate == null
+            );
+        }
+        Gson gson = new Gson();
+        String json = gson.toJson(list);
+
+        prefs(context).edit().putString("yahrzeit_list", json).apply();
+    }
+    public static List<YahrzeitEntry> loadYahrzeitList(Context context) {
+        String json = prefs(context).getString("yahrzeit_list", null);
+
+        if (json == null) return new ArrayList<>();
+
+        Gson gson = new Gson();
+        Type type = new TypeToken<List<YahrzeitEntry>>(){}.getType();
+        List<YahrzeitEntry> list = gson.fromJson(json, type);
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.N) {
+            list.removeIf(e ->
+                    e.name == null || e.name.trim().isEmpty() ||
+                            e.diedDate == null
+            );
+        }
+        return list;
+    }
 
     public static void removeYahrzeit(Context ctx, int index) {
         JSONArray arr = getYahrzeitList(ctx);
@@ -108,7 +151,73 @@ public class UserSettings {
 
         saveYahrzeitList(ctx, newArr);
     }
+    public static void setLastShabbatJson(Context context, String json) {
+        prefs(context)
+                .edit()
+                .putString(KEY_SHABBAT_JSON, json)
+                .apply();
+    }
 
+    public static String getLastShabbatJson(Context context) {
+        return prefs(context).getString(KEY_SHABBAT_JSON, null);
+    }
+    public static void saveYahrzeitJson(Context context, String json) {
+        // Load existing list
+        List<String> list = loadYahrzeitJsonList(context);
+        if (list == null) list = new ArrayList<>();
+
+        // Parse new payload
+        Map<String, Object> newPayload = new Gson().fromJson(json, Map.class);
+        int newId = ((Number) newPayload.get("entry_id")).intValue();
+
+        // Remove any existing entry with the same entry_id
+        Iterator<String> it = list.iterator();
+        while (it.hasNext()) {
+            Map<String, Object> p = new Gson().fromJson(it.next(), Map.class);
+            int id = ((Number) p.get("entry_id")).intValue();
+            if (id == newId) {
+                it.remove();
+                break;
+            }
+        }
+
+        // Add the new JSON
+        list.add(json);
+
+        // Save back
+        prefs(context).edit().putString("yahrzeit_json_list", new Gson().toJson(list)).apply();
+    }
+    public static List<String> loadYahrzeitJsonList(Context context) {
+        String json = prefs(context).getString("yahrzeit_json_list", null);
+        if (json == null) return new ArrayList<>();
+
+        Type type = new TypeToken<List<String>>(){}.getType();
+        return new Gson().fromJson(json, type);
+    }
+    public static Uri getYahrzeitRingtone(Context context) {
+        String uriString = prefs(context).getString("yahrzeit_ringtone", null);
+
+        if (uriString != null && !uriString.trim().isEmpty()) {
+            return Uri.parse(uriString);
+        }
+        // Fallback to system default alarm sound
+        return RingtoneManager.getDefaultUri(RingtoneManager.TYPE_ALARM);
+    }
+    public static void setYahrzeitRingtone(Context context, Uri uri) {
+        prefs(context).edit().putString("yahrzeit_ringtone", uri.toString()).apply();
+    }
+    public static Uri getShabbatRingtone(Context context) {
+        String uriString = prefs(context).getString("shabbat_ringtone", null);
+
+        if (uriString != null && !uriString.trim().isEmpty()) {
+            return Uri.parse(uriString);
+        }
+        // Fallback to system default alarm sound
+        return RingtoneManager.getDefaultUri(RingtoneManager.TYPE_ALARM);
+    }
+    public static void setShabbatRingtone(Context context, Uri uri) {
+        prefs(context).edit().putString("shabbat_ringtone", uri.toString()).apply();
+    }
     // -----------------------------
     //  Internal
     // -----------------------------

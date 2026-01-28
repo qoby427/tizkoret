@@ -11,20 +11,25 @@ import androidx.appcompat.app.AlertDialog;
 import androidx.appcompat.app.AppCompatActivity;
 
 public class MessageActivity extends AppCompatActivity {
-    public boolean inDebug() {
-        return BuildConfig.DEBUG;
-    }
     public AlertDialog showMessage(String message, boolean success) {
         View view = getLayoutInflater().inflate(R.layout.dialog_message, null);
-        TextView txt = view.findViewById(R.id.txtMessage);
-        txt.setText(message);
-
         AlertDialog dialog = new AlertDialog.Builder(this)
                 .setView(view)
                 .create();
+        TextView txt = view.findViewById(R.id.txtMessage);
+        txt.setText(message);
 
-        view.findViewById(R.id.btnOk).setOnClickListener(v -> dialog.dismiss());
+        dialog.show(); // MUST be first
 
+        // Remove the default dialog frame that steals the first tap
+        View parent = (View) view.getParent();
+        if (parent != null) parent.setBackground(null);
+
+        // Some devices wrap it twice
+        View grandParent = (View) parent.getParent();
+        if (grandParent != null) grandParent.setBackground(null);
+
+        // Now apply your custom background
         GradientDrawable bg = new GradientDrawable(
                 GradientDrawable.Orientation.TOP_BOTTOM,
                 success
@@ -33,16 +38,20 @@ public class MessageActivity extends AppCompatActivity {
         );
         bg.setCornerRadius(32f);
         bg.setStroke(4, 0x55000000);
-
         view.setBackground(bg);
+
         dialog.getWindow().setBackgroundDrawable(new ColorDrawable(Color.TRANSPARENT));
         dialog.getWindow().setElevation(24f);
-        dialog.setCanceledOnTouchOutside(false);
-        dialog.setCancelable(false);
 
-        dialog.show();
+        dialog.setCanceledOnTouchOutside(false);
+
+        view.findViewById(R.id.btnMessageOk).setOnClickListener(v -> {
+            dialog.dismiss();
+        });
+
         return dialog;
     }
+
     public void showQuestion(
             String title,
             String message,
