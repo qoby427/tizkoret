@@ -1,49 +1,91 @@
 package com.emhillstudio.tizcoret;
 
-import static android.content.Context.MODE_PRIVATE;
-
-import android.app.AlarmManager;
-import android.app.PendingIntent;
-import android.content.BroadcastReceiver;
+import android.app.NotificationChannel;
+import android.app.NotificationManager;
 import android.content.Context;
-import android.content.Intent;
-import android.content.SharedPreferences;
+import android.media.AudioAttributes;
+import android.net.Uri;
 import android.os.Build;
 
-import com.google.gson.Gson;
+import androidx.core.app.NotificationCompat;
 
-import java.text.SimpleDateFormat;
-import java.util.Date;
-import java.util.HashMap;
-import java.util.Locale;
 import java.util.Map;
 
 public class ShabbatAlarmReceiver extends AlarmReceiver {
     @Override
-    public void onReceive(Context context, Intent intent) {
+    protected void showEarly(Context context, Map<String, Object> payload) {
 
-        String json = intent.getStringExtra("payload");
-        if (json == null)
-            return;
+        int requestCode = ((Number) payload.get("request_code")).intValue();
 
-        // Start service
-        Intent serviceIntent = new Intent(context, AlarmService.class);
-        serviceIntent.putExtra("payload", json);
+        // Create channel if needed
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-            context.startForegroundService(serviceIntent);
+            NotificationManager nm = (NotificationManager)
+                    context.getSystemService(Context.NOTIFICATION_SERVICE);
+
+            NotificationChannel early = new NotificationChannel(
+                    "shabbat_early",
+                    "Shabbat Early Reminder",
+                    NotificationManager.IMPORTANCE_LOW
+            );
+            early.setSound(null, null);   // SILENT
+
+            nm.createNotificationChannel(early);
         }
 
-        // Parse existing payload
-        Map<String, Object> payload = new Gson().fromJson(json, Map.class);
+        NotificationCompat.Builder builder =
+                new NotificationCompat.Builder(context, "shabbat_early")
+                        .setSmallIcon(R.drawable.ic_shabbat_candles)
+                        .setContentTitle("Candle Lighting Reminder")
+                        .setContentText("Candle lighting is in 3 hours")
+                        .setPriority(NotificationCompat.PRIORITY_LOW)
+                        .setAutoCancel(true)
+                        .setSound(null);  // SILENT
 
-        // Compute next week's trigger
-        long nextWeekTrigger = HebrewUtils.computeNextCandleLighting(context) - 5*60*1000;
+        NotificationManager nm = (NotificationManager)
+                context.getSystemService(Context.NOTIFICATION_SERVICE);
 
-        // Update only the changed fields
-        payload.put("next_candle_time", nextWeekTrigger);
-        // Serialize back
-        String nextJson = new Gson().toJson(payload);
-        UserSettings.setLastShabbatJson(context, nextJson);
-        scheduleNextAlarm(context, nextJson);
+        nm.notify(requestCode, builder.build());
+    }
+    @Override
+    protected void showFinal(Context context, Map<String, Object> payload) {
+
+        int requestCode = ((Number) payload.get("request_code")).intValue();
+
+        // Create channel if needed
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+            NotificationManager nm = (NotificationManager)
+                    context.getSystemService(Context.NOTIFICATION_SERVICE);
+
+            NotificationChannel fin = new NotificationChannel(
+                    "shabbat_final",
+                    "Shabbat Alarm",
+                    NotificationManager.IMPORTANCE_HIGH
+            );
+
+            Uri sound = UserSettings.getShabbatRingtone(context);
+            AudioAttributes attrs = new AudioAttributes.Builder()
+                    .setUsage(AudioAttributes.USAGE_ALARM)
+                    .build();
+            fin.setSound(sound, attrs);
+
+            nm.createNotificationChannel(fin);
+        }
+
+        Uri sound = UserSettings.getShabbatRingtone(context);
+
+        NotificationCompat.Builder builder =
+                new NotificationCompat.Builder(context, "shabbat_final")
+                        .setSmallIcon(R.drawable.ic_shabbat_candles)
+                        .setContentTitle("Candle Lighting")
+                        .setContentText("Time to light candles")
+                        .setPriority(NotificationCompat.PRIORITY_HIGH)
+                        .setAutoCancel(true)
+                        .setSound(sound);
+
+        NotificationManager nm = (NotificationManager)
+                context.getSystemService(Context.NOTIFICATION_SERVICE);
+
+        nm.notify(requestCode, builder.build());
     }
 }
+

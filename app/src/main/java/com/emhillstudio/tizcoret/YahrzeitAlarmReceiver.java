@@ -1,48 +1,88 @@
 package com.emhillstudio.tizcoret;
 
-import android.app.AlarmManager;
-import android.app.PendingIntent;
-import android.content.BroadcastReceiver;
+import android.app.NotificationChannel;
+import android.app.NotificationManager;
 import android.content.Context;
-import android.content.Intent;
+import android.media.AudioAttributes;
+import android.net.Uri;
 import android.os.Build;
+import androidx.core.app.NotificationCompat;
 
-import com.google.gson.Gson;
-
-import java.util.Date;
-import java.util.HashMap;
 import java.util.Map;
 
 public class YahrzeitAlarmReceiver extends AlarmReceiver {
-
     @Override
-    public void onReceive(Context context, Intent intent) {
+    protected void showEarly(Context context, Map<String, Object> payload) {
 
-        String json = intent.getStringExtra("payload");
-        if (json == null) return;
+        int requestCode = ((Number) payload.get("request_code")).intValue();
 
-        // Pass JSON to AlarmService
-        Intent serviceIntent = new Intent(context, AlarmService.class);
-        serviceIntent.putExtra("payload", json);
-
+        // Ensure channels exist
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-            context.startForegroundService(serviceIntent);
-        } else {
-            context.startService(serviceIntent);
+            NotificationManager nm = (NotificationManager)
+                    context.getSystemService(Context.NOTIFICATION_SERVICE);
+
+            NotificationChannel early = new NotificationChannel(
+                    "yahrzeit_early",
+                    "Yahrzeit Early Reminder",
+                    NotificationManager.IMPORTANCE_LOW
+            );
+            early.setSound(null, null);   // SILENT
+
+            nm.createNotificationChannel(early);
         }
 
-        // Parse payload
-        Map<String, Object> payload = new Gson().fromJson(json, Map.class);
+        NotificationCompat.Builder builder =
+                new NotificationCompat.Builder(context, "yahrzeit_early")
+                        .setSmallIcon(R.drawable.ic_yahrzeit_candle)   // your icon
+                        .setContentTitle("Yahrzeit Reminder")
+                        .setContentText("The Yahrzeit is in 3 hours")
+                        .setPriority(NotificationCompat.PRIORITY_LOW)
+                        .setAutoCancel(true)
+                        .setSound(null);                        // SILENT
 
-        Number diedNum = (Number) payload.get("died_date");
-        Date diedDate = new Date(diedNum.longValue());
+        NotificationManager nm = (NotificationManager)
+                context.getSystemService(Context.NOTIFICATION_SERVICE);
 
-        // Compute next Hebrew anniversary
-        Date nextDate = HebrewUtils.computeInYearDate(diedDate, 1);
-        payload.put("next_candle_time", nextDate.getTime());
+        nm.notify(requestCode, builder.build());
+    }
+    @Override
+    protected void showFinal(Context context, Map<String, Object> payload) {
 
-        String nextJson = new Gson().toJson(payload);
-        UserSettings.saveYahrzeitJson(context, json);
-        scheduleNextAlarm(context, nextJson);
+        int requestCode = ((Number) payload.get("request_code")).intValue();
+
+        Uri sound = UserSettings.getYahrzeitRingtone(context);
+
+        // Ensure channels exist
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+            NotificationManager nm = (NotificationManager)
+                    context.getSystemService(Context.NOTIFICATION_SERVICE);
+
+            NotificationChannel fin = new NotificationChannel(
+                    "yahrzeit_final",
+                    "Yahrzeit Alarm",
+                    NotificationManager.IMPORTANCE_HIGH
+            );
+
+            AudioAttributes attrs = new AudioAttributes.Builder()
+                    .setUsage(AudioAttributes.USAGE_ALARM)
+                    .build();
+            fin.setSound(sound, attrs);
+
+            nm.createNotificationChannel(fin);
+        }
+
+        NotificationCompat.Builder builder =
+                new NotificationCompat.Builder(context, "yahrzeit_final")
+                        .setSmallIcon(R.drawable.ic_yahrzeit_candle)
+                        .setContentTitle("Yahrzeit")
+                        .setContentText("The Yahrzeit time has arrived")
+                        .setPriority(NotificationCompat.PRIORITY_HIGH)
+                        .setAutoCancel(true)
+                        .setSound(sound);
+
+        NotificationManager nm = (NotificationManager)
+                context.getSystemService(Context.NOTIFICATION_SERVICE);
+
+        nm.notify(requestCode, builder.build());
     }
 }

@@ -201,5 +201,4 @@ public class AlarmService extends Service {
             receiver.scheduleNextAlarm(context, json);
         }
     }
-
 }

@@ -2,6 +2,8 @@ package com.emhillstudio.tizcoret;
 
 import android.content.Context;
 import android.content.SharedPreferences;
+import android.media.RingtoneManager;
+import android.net.Uri;
 import android.os.Build;
 
 import com.google.gson.Gson;
@@ -21,15 +23,10 @@ public class UserSettings {
 
     public static final String PREFS = "prefs";
     private static final String KEY_SHABBAT_JSON = "last_shabbat_json";
-
     private static final String KEY_LAT = "latitude";
     private static final String KEY_LNG = "longitude";
-
     private static final String KEY_SHABBAT_ALARM = "shabbat_alarm_enabled";
-
     private static final String KEY_YAHRZEIT_LIST = "yahrzeit_list";
-
-    // ⭐ NEW: store next scheduled alarm time
     private static final String KEY_NEXT_ALARM = "next_alarm_time";
 
     // -----------------------------
@@ -197,7 +194,30 @@ public class UserSettings {
         Type type = new TypeToken<List<String>>(){}.getType();
         return new Gson().fromJson(json, type);
     }
+    public static Uri getYahrzeitRingtone(Context context) {
+        String uriString = prefs(context).getString("yahrzeit_ringtone", null);
 
+        if (uriString != null && !uriString.trim().isEmpty()) {
+            return Uri.parse(uriString);
+        }
+        // Fallback to system default alarm sound
+        return RingtoneManager.getDefaultUri(RingtoneManager.TYPE_ALARM);
+    }
+    public static void setYahrzeitRingtone(Context context, Uri uri) {
+        prefs(context).edit().putString("yahrzeit_ringtone", uri.toString()).apply();
+    }
+    public static Uri getShabbatRingtone(Context context) {
+        String uriString = prefs(context).getString("shabbat_ringtone", null);
+
+        if (uriString != null && !uriString.trim().isEmpty()) {
+            return Uri.parse(uriString);
+        }
+        // Fallback to system default alarm sound
+        return RingtoneManager.getDefaultUri(RingtoneManager.TYPE_ALARM);
+    }
+    public static void setShabbatRingtone(Context context, Uri uri) {
+        prefs(context).edit().putString("shabbat_ringtone", uri.toString()).apply();
+    }
     // -----------------------------
     //  Internal
     // -----------------------------

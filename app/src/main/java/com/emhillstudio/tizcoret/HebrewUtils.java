@@ -141,6 +141,15 @@ public class HebrewUtils {
 
         // 3. Create a new Hebrew date for next year's Yahrzeit
         JewishCalendar next = new JewishCalendar();
+        next.setJewishYear(nextHebrewYear);
+        // ---- FIX ADAR / ADAR II ----
+        if (hMonth == JewishDate.ADAR || hMonth == JewishDate.ADAR_II) {
+            if (next.isJewishLeapYear()) {
+                hMonth = JewishDate.ADAR_II;
+            } else {
+                hMonth = JewishDate.ADAR;
+            }
+        }
         next.setJewishDate(nextHebrewYear, hMonth, hDay);
 
         // 4. Convert to Gregorian millis

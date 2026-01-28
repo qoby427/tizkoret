@@ -23,6 +23,7 @@
 
         <!-- Shabbat Ringtone -->
         <TextView
+            android:id="@+id/shabbatRingtone"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
             android:text="Shabbat Ringtone"
@@ -38,6 +39,7 @@
 
         <!-- Yahrzeit Ringtone -->
         <TextView
+            android:id="@+id/yahrzeitRingtone"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
             android:text="Yahrzeit Ringtone"

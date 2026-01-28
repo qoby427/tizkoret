@@ -120,11 +120,12 @@ public class MainActivity extends MessageActivity {
         // -----------------------------
         yahrzeitList = findViewById(R.id.yahrzeitList);
         yahrzeitList.setLayoutManager(new LinearLayoutManager(this));
-        yahrzeitAdapter = new YahrzeitAdapter(this, list, entry -> {
+        yahrzeitAdapter = new YahrzeitAdapter(this, list);
+        yahrzeitAdapter.setOnEntryChangedListener(entry -> {
             updateCalendarButton.setEnabled(!yahrzeitAdapter.getEntries().isEmpty());
-            updateHebrewAndInYear(entry);
-            yahrzeitAdapter.notifyDataSetChanged();
+            UserSettings.saveYahrzeitList(this, yahrzeitAdapter.getEntries());
         });
+
         yahrzeitList.setAdapter(yahrzeitAdapter);
 
         List<YahrzeitEntry> saved = UserSettings.loadYahrzeitList(this);
@@ -222,7 +223,6 @@ public class MainActivity extends MessageActivity {
                 );
             }
         }
-
 
         if (BuildConfig.DEBUG) {
             //UserSettings.setShabbatAlarmEnabled(this, false);
@@ -429,7 +429,7 @@ public class MainActivity extends MessageActivity {
         String formatted = new SimpleDateFormat("h:mm a", Locale.getDefault())
                 .format(new Date(candleLightingMillis));
 
-        String title = header + "Candle Lighting – " + formatted+". Brachot from Tizcóret team";
+        String title = header + "Candle Lighting – " + formatted;
 
         if (eventAlreadyExists(calendarId, candleLightingMillis, title))
             return false;
@@ -705,12 +705,12 @@ public class MainActivity extends MessageActivity {
 
         long minuteStart = Math.round(startUtc / 60000.0) * 60000L;
         long minuteEnd = minuteStart + 59999L;
-
+        /*
         String selection =
                 CalendarContract.Events.CALENDAR_ID + "=? AND " +
-                        CalendarContract.Events.TITLE + "=? AND " +
-                        CalendarContract.Events.DTSTART + ">=? AND " +
-                        CalendarContract.Events.DTSTART + "<=?";
+                CalendarContract.Events.TITLE + "=? AND " +
+                CalendarContract.Events.DTSTART + ">=? AND " +
+                CalendarContract.Events.DTSTART + "<=?";
 
         String[] selectionArgs = new String[]{
                 Long.toString(calendarId),
@@ -718,6 +718,10 @@ public class MainActivity extends MessageActivity {
                 Long.toString(minuteStart),
                 Long.toString(minuteEnd)
         };
+        */
+
+        String selection = CalendarContract.Events.TITLE + " = ?";
+        String[] selectionArgs = new String[]{ title };
 
         Cursor cur = cr.query(
                 CalendarContract.Events.CONTENT_URI,
@@ -736,7 +740,6 @@ public class MainActivity extends MessageActivity {
         if (entry.diedDate == null) {
             entry.hebrewDate = "";
             entry.inYear = "";
-            yahrzeitAdapter.notifyDataSetChanged();
             return;
         }
 
@@ -767,8 +770,6 @@ public class MainActivity extends MessageActivity {
         Date greg = target.getGregorianCalendar().getTime();
 
         entry.inYear = new SimpleDateFormat("MMM d", Locale.getDefault()).format(greg);
-
-        yahrzeitAdapter.notifyDataSetChanged();
     }
     private static final int RINGTONE_REQUEST_CODE = 1234;
 

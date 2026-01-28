@@ -7,6 +7,7 @@ import android.net.Uri;
 import android.os.Bundle;
 import android.widget.RadioButton;
 import android.widget.RadioGroup;
+import android.widget.TextView;
 
 import androidx.annotation.Nullable;
 import androidx.appcompat.app.AppCompatActivity;
@@ -17,13 +18,17 @@ public class CustomizeActivity extends AppCompatActivity {
     private static final int REQ_YAHRZEIT_RINGTONE = 2002;
 
     private SharedPreferences prefs;
-
+    private TextView shText;
+    private TextView yzText;
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_customize);
 
-        prefs = getSharedPreferences("prefs", MODE_PRIVATE);
+        prefs = getSharedPreferences(UserSettings.PREFS, MODE_PRIVATE);
+
+        shText = findViewById(R.id.shabbatRingtone);
+        yzText = findViewById(R.id.yahrzeitRingtone);
 
         findViewById(R.id.btnShabbatRingtone).setOnClickListener(v ->
                 openRingtonePicker(REQ_SHABBAT_RINGTONE)
@@ -32,18 +37,31 @@ public class CustomizeActivity extends AppCompatActivity {
         findViewById(R.id.btnYahrzeitRingtone).setOnClickListener(v ->
                 openRingtonePicker(REQ_YAHRZEIT_RINGTONE)
         );
-
+        updateLabels();
         setupDateFormatSelector();
     }
 
     private void openRingtonePicker(int requestCode) {
+        Uri uri;
+        if(requestCode == REQ_SHABBAT_RINGTONE) {
+            uri = UserSettings.getShabbatRingtone(this);
+        }
+        else {
+            uri = UserSettings.getYahrzeitRingtone(this);
+        }
+
         Intent intent = new Intent(RingtoneManager.ACTION_RINGTONE_PICKER);
         intent.putExtra(RingtoneManager.EXTRA_RINGTONE_TYPE, RingtoneManager.TYPE_ALARM);
         intent.putExtra(RingtoneManager.EXTRA_RINGTONE_TITLE, "Select Ringtone");
         intent.putExtra(RingtoneManager.EXTRA_RINGTONE_SHOW_SILENT, false);
         intent.putExtra(RingtoneManager.EXTRA_RINGTONE_SHOW_DEFAULT, true);
+
+        // ⭐ This highlights the current ringtone
+        intent.putExtra(RingtoneManager.EXTRA_RINGTONE_EXISTING_URI, uri);
+
         startActivityForResult(intent, requestCode);
     }
+
 
     @Override
     protected void onActivityResult(int requestCode, int resultCode, @Nullable Intent data) {
@@ -58,11 +76,14 @@ public class CustomizeActivity extends AppCompatActivity {
 
         if (requestCode == REQ_SHABBAT_RINGTONE) {
             editor.putString("ringtone_shabbat", uri.toString());
+            UserSettings.setShabbatRingtone(this, uri);
         } else if (requestCode == REQ_YAHRZEIT_RINGTONE) {
             editor.putString("ringtone_yahrzeit", uri.toString());
+            UserSettings.setYahrzeitRingtone(this, uri);
         }
 
         editor.apply();
+        updateLabels();
     }
 
     private void setupDateFormatSelector() {
@@ -85,5 +106,21 @@ public class CustomizeActivity extends AppCompatActivity {
 
             prefs.edit().putString("date_format", format).apply();
         });
+    }
+    private void updateLabels() {
+        Uri shUri = UserSettings.getShabbatRingtone(this);
+        Uri yzUri = UserSettings.getYahrzeitRingtone(this);
+
+        shText.setText("Shabbat Ringtone: " + getRingtoneName(shUri));
+        yzText.setText("Yahrzeit Ringtone: " + getRingtoneName(yzUri));
+    }
+
+    private String getRingtoneName(Uri uri) {
+        if (uri == null) return "Default";
+        try {
+            return RingtoneManager.getRingtone(this, uri).getTitle(this);
+        } catch (Exception e) {
+            return "Default";
+        }
     }
 }

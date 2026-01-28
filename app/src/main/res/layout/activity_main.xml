@@ -12,19 +12,10 @@
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
         android:text="Tizcóret"
-        android:textSize="28sp"
+        android:textSize="20sp"
         android:textStyle="bold"
         android:gravity="center"
         android:paddingBottom="4dp"/>
-
-    <TextView
-        android:id="@+id/titleSub"
-        android:layout_width="match_parent"
-        android:layout_height="wrap_content"
-        android:text="Shabbat alarm and Yahrzeit planner"
-        android:textSize="16sp"
-        android:gravity="center"
-        android:paddingBottom="16dp"/>
 
     <!-- Shabbat Frame (fixed) -->
     <androidx.cardview.widget.CardView

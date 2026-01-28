@@ -24,6 +24,14 @@ public class YahrzeitEntry {
     }
 
     public long getDiedMillis() {
+
         return diedDate != null ? diedDate.getTime() : 0L;
+    }
+    public boolean isComplete() {
+        boolean is = name != null && !name.trim().isEmpty()
+                && hebrewDate != null && !hebrewDate.trim().isEmpty()
+                && diedDate != null
+                && inYear != null && !inYear.trim().isEmpty();
+        return is;
     }
 }
