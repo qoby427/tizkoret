@@ -71,7 +71,13 @@ public class YahrzeitAdapter extends RecyclerView.Adapter<RecyclerView.ViewHolde
     public RecyclerView.ViewHolder onCreateViewHolder(ViewGroup parent, int viewType) {
         View v = LayoutInflater.from(parent.getContext())
                 .inflate(R.layout.item_yahrzeit_row, parent, false);
-        return new RowViewHolder(v);
+
+        RowViewHolder holder = new RowViewHolder(v);
+        String format = prefs.getString("date_format", "MM/dd/yyyy");
+        EditText diedDate = holder.dateField;
+        diedDate.setHint(format.toUpperCase(Locale.US));
+
+        return holder;
     }
 
     // ---------------------------------------------------------

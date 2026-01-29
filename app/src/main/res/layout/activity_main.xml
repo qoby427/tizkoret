@@ -7,15 +7,55 @@
     android:layout_height="match_parent">
 
     <!-- Title -->
-    <TextView
-        android:id="@+id/titleMain"
+    <LinearLayout
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:text="Tizcóret"
-        android:textSize="20sp"
-        android:textStyle="bold"
-        android:gravity="center"
-        android:paddingBottom="4dp"/>
+        android:orientation="vertical"
+        android:gravity="center_horizontal"
+        android:paddingBottom="12dp"
+        android:paddingTop="12dp">
+
+        <!-- Title row -->
+        <LinearLayout
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:orientation="horizontal"
+            android:gravity="center">
+
+            <TextView
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="Tizcóret"
+                android:textSize="22sp"/>
+
+            <TextView
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="תזכורת"
+                android:textSize="20sp"
+                android:layout_marginStart="12dp"/>
+        </LinearLayout>
+
+        <!-- Short explanation line(s) -->
+        <TextView
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="Reminders for Shabbat and Yahrzeit"
+            android:textSize="14sp"
+            android:gravity="center"
+            android:layout_marginTop="6dp"/>
+
+        <!-- Optional second line -->
+        <TextView
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="From now on you will never miss important times and dates"
+            android:textSize="14sp"
+            android:gravity="center"
+            android:layout_marginTop="2dp"/>
+
+    </LinearLayout>
+
 
     <!-- Shabbat Frame (fixed) -->
     <androidx.cardview.widget.CardView
@@ -86,7 +126,8 @@
                 android:text="Yahrzeit"
                 android:textSize="20sp"
                 android:textStyle="bold"
-                android:paddingBottom="0dp"
+                android:paddingTop="12dp"
+                android:paddingBottom="8dp"
                 android:paddingLeft="0dp"/>
 
             <LinearLayout
