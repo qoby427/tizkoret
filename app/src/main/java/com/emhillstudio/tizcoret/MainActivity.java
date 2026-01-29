@@ -1,8 +1,13 @@
 package com.emhillstudio.tizcoret;
 
+import androidx.activity.EdgeToEdge;
+import androidx.activity.SystemBarStyle;
 import androidx.core.app.ActivityCompat;
 import androidx.core.content.ContextCompat;
+import androidx.core.graphics.Insets;
+import androidx.core.view.ViewCompat;
 import androidx.core.view.WindowCompat;
+import androidx.core.view.WindowInsetsCompat;
 import androidx.recyclerview.widget.LinearLayoutManager;
 import androidx.recyclerview.widget.RecyclerView;
 
@@ -17,6 +22,7 @@ import android.content.Intent;
 import android.content.SharedPreferences;
 import android.content.pm.PackageManager;
 import android.database.Cursor;
+import android.graphics.Color;
 import android.location.Location;
 import android.media.RingtoneManager;
 import android.net.Uri;
@@ -24,6 +30,7 @@ import android.os.Build;
 import android.os.Bundle;
 import android.os.Looper;
 import android.provider.CalendarContract;
+import android.view.View;
 import android.widget.TextView;
 
 import com.google.android.gms.location.LocationCallback;
@@ -203,15 +210,28 @@ public class MainActivity extends MessageActivity {
         findViewById(R.id.buttonSupport).setOnClickListener(v -> {
             startActivity(new Intent(this, SupportActivity.class));
         });
-        /*
-        WindowCompat.setDecorFitsSystemWindows(getWindow(), false);
-        View root = findViewById(R.id.root);
-        ViewCompat.setOnApplyWindowInsetsListener(root, (v, insets) -> {
-            int ime = insets.getInsets(WindowInsetsCompat.Type.ime()).bottom;
-            v.setPadding(0, 110, 0, 120);
+
+        EdgeToEdge.enable(
+                this,
+                SystemBarStyle.light(
+                        /* backgroundColor = */ Color.TRANSPARENT,
+                        /* foregroundColor = */ Color.BLACK
+                ),
+                SystemBarStyle.light(
+                        /* backgroundColor = */ Color.TRANSPARENT,
+                        /* foregroundColor = */ Color.BLACK
+                )
+        );
+
+        WindowCompat.setDecorFitsSystemWindows(getWindow(), true);
+        View content = findViewById(android.R.id.content);
+
+        ViewCompat.setOnApplyWindowInsetsListener(content, (v, insets) -> {
+            Insets bars = insets.getInsets(WindowInsetsCompat.Type.systemBars());
+            v.setPadding(bars.left, bars.top, bars.right, bars.bottom);
             return insets;
         });
-        */
+
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
             if (ActivityCompat.checkSelfPermission(this, Manifest.permission.POST_NOTIFICATIONS)
                     != PackageManager.PERMISSION_GRANTED) {

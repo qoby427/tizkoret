@@ -34,8 +34,9 @@ def generateVersionName(int versionCode) {
 
     return "1.${day}${month}.${versionCode}"
 }
+
 def computedVersionCode = getVersionCode()
-def computedVersionName= generateVersionName(computedVersionCode)
+def computedVersionName = generateVersionName(computedVersionCode)
 
 android {
     namespace 'com.emhillstudio.tizcoret'
@@ -49,12 +50,23 @@ android {
         versionName computedVersionName
 
         testInstrumentationRunner "androidx.test.runner.AndroidJUnitRunner"
+
+        ndk {
+            abiFilters "arm64-v8a"
+        }
     }
 
     buildTypes {
         release {
-            minifyEnabled false
-            proguardFiles getDefaultProguardFile('proguard-android-optimize.txt'), 'proguard-rules.pro'
+            minifyEnabled true
+            shrinkResources true
+
+            ndk {
+                debugSymbolLevel 'none'
+            }
+
+            proguardFiles getDefaultProguardFile('proguard-android-optimize.txt'),
+                    'proguard-rules.pro'
         }
     }
 
@@ -69,27 +81,24 @@ android {
 }
 
 dependencies {
+    // Remove duplicates
     implementation libs.appcompat
-    implementation libs.appcompat.v170
     implementation libs.activity
     implementation libs.constraintlayout.v214
-    implementation libs.play.services.location
-    implementation libs.geo
-    implementation libs.timezonemap.utils
-    implementation libs.timezonemap.builder
-    implementation libs.timezonemap.data
-    implementation libs.zstd.jni
+
+    // Only ONE Play Services Location
     implementation libs.play.services.location.v2101
-    implementation libs.timeshape.v2023a10
+
+    implementation libs.geo
     implementation libs.work.runtime
     implementation "com.android.billingclient:billing:6.1.0"
     implementation "com.kosherjava:zmanim:2.5.0"
     implementation libs.gson
     implementation libs.material.v1130
 
-    implementation(libs.timeshape.v2025b26) {
-        exclude group: "com.github.luben", module: "zstd-jni"
-    }
+    // REMOVE Timeshape completely — it ALWAYS brings timezone data
+    // implementation(libs.timeshape.v2025b26)
+    // If you keep it, it WILL add 20–30 MB of data.
 
     testImplementation libs.junit
     androidTestImplementation libs.ext.junit
