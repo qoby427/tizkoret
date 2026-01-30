@@ -58,12 +58,10 @@ public class HebrewUtils {
         int sourceMonth = jc.getJewishMonth();
         int sourceDay = jc.getJewishDayOfMonth();
 
-        boolean targetLeap = now.isJewishLeapYear();
-
         int targetMonth = sourceMonth;
 
-        // ---- FIX ADAR / ADAR II ----
         if (sourceMonth == JewishDate.ADAR || sourceMonth == JewishDate.ADAR_II) {
+            boolean targetLeap = now.isJewishLeapYear();
             if (targetLeap) {
                 targetMonth = JewishDate.ADAR_II;
             } else {
@@ -71,8 +69,12 @@ public class HebrewUtils {
             }
         }
 
+        JewishCalendar rosh_hashana = new JewishCalendar();
+        rosh_hashana.setJewishDate(targetYear, 7, 1);
         JewishCalendar result = new JewishCalendar();
         result.setJewishDate(targetYear, targetMonth, sourceDay);
+        if(result.getAbsDate() >= rosh_hashana.getAbsDate())
+            result.setJewishDate(targetYear+1, targetMonth, sourceDay);
 
         Date gregorian = result.getGregorianCalendar().getTime();
         return gregorian;
