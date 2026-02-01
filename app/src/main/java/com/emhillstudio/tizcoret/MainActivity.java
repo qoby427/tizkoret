@@ -2,6 +2,7 @@ package com.emhillstudio.tizcoret;
 
 import androidx.activity.EdgeToEdge;
 import androidx.activity.SystemBarStyle;
+import androidx.annotation.NonNull;
 import androidx.core.app.ActivityCompat;
 import androidx.core.content.ContextCompat;
 import androidx.core.graphics.Insets;
@@ -29,6 +30,7 @@ import android.net.Uri;
 import android.os.Build;
 import android.os.Bundle;
 import android.os.Looper;
+import android.os.StrictMode;
 import android.provider.CalendarContract;
 import android.view.View;
 import android.widget.TextView;
@@ -72,7 +74,16 @@ public class MainActivity extends MessageActivity {
     private String timeZoneId;
     private List<YahrzeitEntry> list = new ArrayList<>();
     private static SharedPreferences prefs;
+    private static final int RINGTONE_REQUEST_CODE = 1234;
     private static final int REQ_CALENDAR = 100;
+    private static final int REQ_LOCATION = 1001;
+    private enum PendingAction {
+        NONE,
+        UPDATE_CALENDAR,
+        ADD_SHABBAT_EVENTS,
+        GET_LOCATION
+    }
+    private PendingAction pendingAction = PendingAction.NONE;
 
     @Override
     protected void onResume() {
@@ -150,37 +161,17 @@ public class MainActivity extends MessageActivity {
         }
 
         updateCalendarButton.setEnabled(!yahrzeitAdapter.getEntries().isEmpty());
-
         updateCalendarButton.setOnClickListener(v -> {
-            setCalendarPerms();
+            pendingAction = PendingAction.UPDATE_CALENDAR;
 
-            SimpleDateFormat sdf = new SimpleDateFormat("MMM dd yyyy", Locale.US);
-
-            for (YahrzeitEntry entry : yahrzeitAdapter.getEntries()) {
-                if(entry.name.isEmpty() || entry.diedDate.toString().isEmpty())
-                    continue;
-                String yahrzeit = entry.inYear + " " + currentYear;
-                try {
-                    Date yahrzeitDate = sdf.parse(yahrzeit);
-                    Calendar cal = Calendar.getInstance();
-                    cal.setTime(yahrzeitDate);
-                    cal.add(Calendar.DAY_OF_MONTH, -1);
-
-                    ZmanimCalendar zc = buildZmanimCalendar();
-                    zc.setCalendar(cal);
-
-                    Date candleLighting = zc.getCandleLighting();
-                    String msg = entry.name.strip()+"'s Yahrzeit tomorrow. ";
-                    if(insertCalendarEvent(candleLighting.getTime(), msg)) {
-                        scheduleAlarm(candleLighting.getTime(), "yahrzeit",entry.diedDate);
-                    }
-                } catch (ParseException e) {
-                    showMessage("Cannot pars date "+yahrzeit+"\n"+e.toString(), false);
-                    return;
-                }
+            if (hasLocationPermission() && hasCalendarPermission()) {
+                updateCalendar();
+                return;
             }
-            showMessage("Calendar updated", true);
+
+            requestLocation();
         });
+
 
         if (ActivityCompat.checkSelfPermission(this, Manifest.permission.WRITE_CALENDAR)
                 != PackageManager.PERMISSION_GRANTED ||
@@ -262,27 +253,46 @@ public class MainActivity extends MessageActivity {
             }
         }
     }
+    private boolean hasLocationPermission() {
+        return ActivityCompat.checkSelfPermission(this, Manifest.permission.ACCESS_FINE_LOCATION)
+                == PackageManager.PERMISSION_GRANTED;
+    }
 
-    @Override
-    public void onRequestPermissionsResult(int requestCode, String[] permissions, int[] grantResults) {
-        super.onRequestPermissionsResult(requestCode, permissions, grantResults);
+    private boolean hasCalendarPermission() {
+        return ActivityCompat.checkSelfPermission(this, Manifest.permission.WRITE_CALENDAR)
+                == PackageManager.PERMISSION_GRANTED;
+    }
 
-        if (requestCode == 1001 && grantResults.length > 0 &&
-                grantResults[0] == PackageManager.PERMISSION_GRANTED) {
-            requestGpsCoordinates();
-        }
-        if (requestCode == REQ_CALENDAR) {
-            if (grantResults.length > 0 && grantResults[0] == PackageManager.PERMISSION_GRANTED) {
-            } else {
-                cancelAlarm(
-                        1001,
-                        ShabbatAlarmReceiver.class,
-                        AlarmService.class
-                );
+    private void updateCalendar() {
+        SimpleDateFormat sdf = new SimpleDateFormat("MMM dd yyyy", Locale.US);
+
+        for (YahrzeitEntry entry : yahrzeitAdapter.getEntries()) {
+            if(entry.name.isEmpty() || entry.diedDate.toString().isEmpty())
+                continue;
+            int currentYear = Calendar.getInstance().get(Calendar.YEAR);
+            String yahrzeit = entry.inYear + " " + currentYear;
+            try {
+                Date yahrzeitDate = sdf.parse(yahrzeit);
+                Calendar cal = Calendar.getInstance();
+                cal.setTime(yahrzeitDate);
+                cal.add(Calendar.DAY_OF_MONTH, -1);
+
+                ZmanimCalendar zc = buildZmanimCalendar();
+                zc.setCalendar(cal);
+
+                Date candleLighting = zc.getCandleLighting();
+                String msg = entry.name.strip()+"'s Yahrzeit tomorrow. ";
+                if(insertCalendarEvent(candleLighting.getTime(), msg)) {
+                    scheduleAlarm(candleLighting.getTime(), "yahrzeit",entry.diedDate);
+                }
+            } catch (ParseException e) {
+                showMessage("Cannot pars date "+yahrzeit+"\n"+e.toString(), false);
+                return;
             }
         }
+        showMessage("Calendar updated", true);
     }
-    private void setCalendarPerms() {
+    private boolean setCalendarPerms() {
         if (ActivityCompat.checkSelfPermission(this, Manifest.permission.WRITE_CALENDAR)
                 != PackageManager.PERMISSION_GRANTED ||
                 ActivityCompat.checkSelfPermission(this, Manifest.permission.READ_CALENDAR)
@@ -296,6 +306,44 @@ public class MainActivity extends MessageActivity {
                     },
                     2001
             );
+            return false; // STOP HERE
+        }
+        return true; // Permission already granted
+    }
+
+    @Override
+    public void onRequestPermissionsResult(int requestCode, String[] permissions, int[] grantResults) {
+        super.onRequestPermissionsResult(requestCode, permissions, grantResults);
+
+        boolean granted = grantResults.length > 0 &&
+                grantResults[0] == PackageManager.PERMISSION_GRANTED;
+
+        // 1️⃣ LOCATION permission result
+        if (requestCode == REQ_LOCATION) {
+            if (granted) {
+                // Now that location is allowed, continue the flow:
+                // → request calendar permission next
+                if (setCalendarPerms()) {
+                    // Calendar permission already granted
+                    if (pendingAction == PendingAction.ADD_SHABBAT_EVENTS) {
+                        addNextFridayShabbatEvents();
+                    } else if (pendingAction == PendingAction.UPDATE_CALENDAR) {
+                        updateCalendar();
+                    }
+                }
+            }
+        }
+        // 2️⃣ CALENDAR permission result
+        else if (requestCode == REQ_CALENDAR) {
+            if (granted) {
+                if (pendingAction == PendingAction.ADD_SHABBAT_EVENTS) {
+                    addNextFridayShabbatEvents();
+                } else if (pendingAction == PendingAction.UPDATE_CALENDAR) {
+                    updateCalendar();
+                }
+            }
+
+            pendingAction = PendingAction.NONE;
         }
     }
 
@@ -369,8 +417,14 @@ public class MainActivity extends MessageActivity {
             showQuestion("Add Shabbat Times",
                     "Would you like to add Shabbat times for next Friday to your calendar?",
                     () -> {
-                        ensureCalendarPermission();
-                        addNextFridayShabbatEvents();
+                        pendingAction = PendingAction.ADD_SHABBAT_EVENTS;
+
+                        if (hasLocationPermission() && hasCalendarPermission()) {
+                            addNextFridayShabbatEvents();
+                            return;
+                        }
+
+                        requestLocation();
                     });
         }
         else {
@@ -786,8 +840,6 @@ public class MainActivity extends MessageActivity {
 
         entry.inYear = new SimpleDateFormat("MMM d", Locale.getDefault()).format(greg);
     }
-    private static final int RINGTONE_REQUEST_CODE = 1234;
-
     private void openRingtonePicker() {
         Intent intent = new Intent(RingtoneManager.ACTION_RINGTONE_PICKER);
         intent.putExtra(RingtoneManager.EXTRA_RINGTONE_TYPE, RingtoneManager.TYPE_ALARM);
@@ -807,25 +859,40 @@ public class MainActivity extends MessageActivity {
     private void scheduleDebugAlarm() {
         long now = System.currentTimeMillis();
         // Fake candle-lighting time = now + 10 seconds + 5 minutes
-        long fakeCandleTime = now + 20*1000;
+        long fakeCandleTime = now + 20 * 1000;
 
         scheduleAlarm(fakeCandleTime, "shabbat", null);
 
         showMessage("Debug alarm scheduled for 2 min from now", false);
     }
-    private void ensureCalendarPermission() {
-        if (ContextCompat.checkSelfPermission(this, Manifest.permission.WRITE_CALENDAR)
+    private void requestLocation() {
+        if (ActivityCompat.checkSelfPermission(this, Manifest.permission.ACCESS_FINE_LOCATION)
                 != PackageManager.PERMISSION_GRANTED) {
 
+            pendingAction = PendingAction.GET_LOCATION;
             ActivityCompat.requestPermissions(
                     this,
-                    new String[]{
-                            Manifest.permission.READ_CALENDAR,
-                            Manifest.permission.WRITE_CALENDAR
-                    },
-                    REQ_CALENDAR
+                    new String[]{ Manifest.permission.ACCESS_FINE_LOCATION },
+                    REQ_LOCATION
             );
+            return;
         }
-    }
 
+        // Permission already granted
+        getLocationNow();
+    }
+    private void getLocationNow() {
+        LocationHelper.getAccurateLocation(this, new LocationHelper.LocationListener() {
+            @Override
+            public void onLocationAvailable(double latitude, double longitude) {
+                UserSettings.setLatitude(MainActivity.this, latitude);
+                UserSettings.setLongitude(MainActivity.this, longitude);
+            }
+
+            @Override
+            public void onLocationUnavailable() {
+                // Optional: show a message or fallback
+            }
+        });
+    }
 }

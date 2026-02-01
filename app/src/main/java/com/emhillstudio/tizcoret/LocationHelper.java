@@ -31,9 +31,6 @@ public class LocationHelper {
     private static final float MAX_ACCEPTABLE_ACCURACY = 50f; // meters
     private static final long MAX_WAIT_TIME_MS = 30000; // 30 seconds max wait
 
-    /**
-     * Requests a high-accuracy location like professional apps.
-     */
     public static void getAccurateLocation(@NonNull Activity activity,
                                            @NonNull LocationListener listener) {
 
@@ -42,28 +39,19 @@ public class LocationHelper {
         AtomicBoolean locationFound = new AtomicBoolean(false);
         Handler timeoutHandler = new Handler(Looper.getMainLooper());
 
-        // Check permission
-        if (ActivityCompat.checkSelfPermission(activity, Manifest.permission.ACCESS_FINE_LOCATION)
-                != PackageManager.PERMISSION_GRANTED) {
-            ActivityCompat.requestPermissions(activity,
-                    new String[]{Manifest.permission.ACCESS_FINE_LOCATION}, 1001);
-            listener.onLocationUnavailable();
-            return;
-        }
-
-        // Timeout: if no location after MAX_WAIT_TIME_MS, give up
+        // Timeout
         timeoutHandler.postDelayed(() -> {
             if (!locationFound.get()) {
                 listener.onLocationUnavailable();
             }
         }, MAX_WAIT_TIME_MS);
 
-        // 1️⃣ Request Fused updates
+        // Fused request
         LocationRequest request = LocationRequest.create();
         request.setPriority(LocationRequest.PRIORITY_HIGH_ACCURACY);
-        request.setInterval(1000);   // 1 sec updates
+        request.setInterval(1000);
         request.setFastestInterval(500);
-        request.setNumUpdates(20);   // allow multiple updates
+        request.setNumUpdates(20);
 
         LocationCallback fusedCallback = new LocationCallback() {
             @Override
@@ -76,11 +64,10 @@ public class LocationHelper {
                     float accuracy = loc.getAccuracy();
                     long ageMs = System.currentTimeMillis() - loc.getTime();
 
-                    // Debug
-                    System.out.printf("Fused Lat: %.5f, Lng: %.5f, Acc: %.1f, Age: %dms\n",
-                            lat, lng, accuracy, ageMs);
+                    if (!isFallbackLocation(lat, lng) &&
+                            accuracy <= MAX_ACCEPTABLE_ACCURACY &&
+                            ageMs < 60000) {
 
-                    if (!isFallbackLocation(lat, lng) && accuracy <= MAX_ACCEPTABLE_ACCURACY && ageMs < 60000) {
                         if (locationFound.compareAndSet(false, true)) {
                             UserSettings.setLatitude(activity, lat);
                             UserSettings.setLongitude(activity, lng);
@@ -92,9 +79,18 @@ public class LocationHelper {
                 }
             }
         };
+
+        if (ActivityCompat.checkSelfPermission(activity, Manifest.permission.ACCESS_FINE_LOCATION)
+                != PackageManager.PERMISSION_GRANTED &&
+                ActivityCompat.checkSelfPermission(activity, Manifest.permission.ACCESS_COARSE_LOCATION)
+                        != PackageManager.PERMISSION_GRANTED) {
+
+            return; // Activity must request permission BEFORE calling this method
+        }
+
         fused.requestLocationUpdates(request, fusedCallback, Looper.getMainLooper());
 
-        // 2️⃣ GPS fallback
+        // GPS fallback
         if (lm != null && lm.isProviderEnabled(LocationManager.GPS_PROVIDER)) {
             lm.requestLocationUpdates(LocationManager.GPS_PROVIDER, 1000, 0,
                     new android.location.LocationListener() {
@@ -105,10 +101,10 @@ public class LocationHelper {
                             float accuracy = loc.getAccuracy();
                             long ageMs = System.currentTimeMillis() - loc.getTime();
 
-                            System.out.printf("GPS Lat: %.5f, Lng: %.5f, Acc: %.1f, Age: %dms\n",
-                                    lat, lng, accuracy, ageMs);
+                            if (!isFallbackLocation(lat, lng) &&
+                                    accuracy <= MAX_ACCEPTABLE_ACCURACY &&
+                                    ageMs < 60000) {
 
-                            if (!isFallbackLocation(lat, lng) && accuracy <= MAX_ACCEPTABLE_ACCURACY && ageMs < 60000) {
                                 if (locationFound.compareAndSet(false, true)) {
                                     UserSettings.setLatitude(activity, lat);
                                     UserSettings.setLongitude(activity, lng);
@@ -126,9 +122,6 @@ public class LocationHelper {
         }
     }
 
-    /**
-     * Reject obviously invalid fallback coordinates
-     */
     private static boolean isFallbackLocation(double lat, double lng) {
         return (lat == 0 && lng == 0)
                 || (lat < -90 || lat > 90)
