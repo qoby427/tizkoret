@@ -46,6 +46,45 @@ public class HebrewUtils {
 
         return day + " " + month;
     }
+    public static Date nextYahrzeit(Date deathGregorian) {
+
+        // 1️⃣ Hebrew date of death
+        JewishCalendar deathJC = new JewishCalendar();
+        deathJC.setDate(deathGregorian);
+
+        int deathDay = deathJC.getJewishDayOfMonth();
+        int deathMonth = deathJC.getJewishMonth();
+
+        // 2️⃣ Current Hebrew year
+        JewishCalendar nowJC = new JewishCalendar();
+        nowJC.setDate(new Date());
+        int currentHebrewYear = nowJC.getJewishYear();
+
+        // 3️⃣ Try this year and next year
+        Date candidate1 = yahrzeitInHebrewYear(currentHebrewYear, deathMonth, deathDay);
+
+        if (candidate1.after(new Date())) {
+            return candidate1;
+        }
+
+        return yahrzeitInHebrewYear(currentHebrewYear + 1, deathMonth, deathDay);
+    }
+    private static Date yahrzeitInHebrewYear(int hebrewYear, int month, int day) {
+        JewishCalendar jc = new JewishCalendar();
+        if (month == JewishDate.ADAR || month == JewishDate.ADAR_II) {
+            boolean targetLeap = jc.isJewishLeapYear();
+            if (targetLeap) {
+                month = JewishDate.ADAR_II;
+            } else {
+                month = JewishDate.ADAR;
+            }
+        }
+
+        jc.setJewishDate(hebrewYear, month, day);
+
+        Calendar gc = jc.getGregorianCalendar();
+        return gc.getTime();
+    }
     public static Date computeInYearDate(Date date, int years_ahead) {
         Calendar cal = Calendar.getInstance();
         cal.setTime(date);

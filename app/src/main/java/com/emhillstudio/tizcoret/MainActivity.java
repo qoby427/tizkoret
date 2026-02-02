@@ -105,10 +105,6 @@ public class MainActivity extends MessageActivity {
         shabbatToggle = findViewById(R.id.shabbatToggleButton);
         yahrzeitList = findViewById(R.id.yahrzeitList);
 
-        TextView headerInYear = findViewById(R.id.headerInYear);
-        int currentYear = Calendar.getInstance().get(Calendar.YEAR);
-        headerInYear.setText("In " + currentYear);
-
         LocationHelper.getAccurateLocation(this, new LocationHelper.LocationListener() {
             @Override
             public void onLocationAvailable(double latitude, double longitude) {
@@ -264,17 +260,12 @@ public class MainActivity extends MessageActivity {
     }
 
     private void updateCalendar() {
-        SimpleDateFormat sdf = new SimpleDateFormat("MMM dd yyyy", Locale.US);
-
         for (YahrzeitEntry entry : yahrzeitAdapter.getEntries()) {
             if(entry.name.isEmpty() || entry.diedDate.toString().isEmpty())
                 continue;
-            int currentYear = Calendar.getInstance().get(Calendar.YEAR);
-            String yahrzeit = entry.inYear + " " + currentYear;
             try {
-                Date yahrzeitDate = sdf.parse(yahrzeit);
                 Calendar cal = Calendar.getInstance();
-                cal.setTime(yahrzeitDate);
+                cal.setTime(entry.inYear);
                 cal.add(Calendar.DAY_OF_MONTH, -1);
 
                 ZmanimCalendar zc = buildZmanimCalendar();
@@ -285,12 +276,13 @@ public class MainActivity extends MessageActivity {
                 if(insertCalendarEvent(candleLighting.getTime(), msg)) {
                     scheduleAlarm(candleLighting.getTime(), "yahrzeit",entry.diedDate);
                 }
-            } catch (ParseException e) {
-                showMessage("Cannot pars date "+yahrzeit+"\n"+e.toString(), false);
-                return;
+                showMessage("Calendar updated", true);
+            } catch (Exception e) {
+                String format = prefs.getString("date_format", "MM/dd/yyyy");
+                SimpleDateFormat sdf = new SimpleDateFormat(format, Locale.US);
+                showMessage("Cannot parse date "+sdf.format(entry.inYear)+"\n"+e.toString(), false);
             }
         }
-        showMessage("Calendar updated", true);
     }
     private boolean setCalendarPerms() {
         if (ActivityCompat.checkSelfPermission(this, Manifest.permission.WRITE_CALENDAR)
@@ -808,7 +800,7 @@ public class MainActivity extends MessageActivity {
     private void updateHebrewAndInYear(YahrzeitEntry entry) {
         if (entry.diedDate == null) {
             entry.hebrewDate = "";
-            entry.inYear = "";
+            entry.inYear = null;
             return;
         }
 
@@ -836,9 +828,7 @@ public class MainActivity extends MessageActivity {
         JewishCalendar target = new JewishCalendar();
         target.setJewishDate(hYear, hMonth, hDay);
 
-        Date greg = target.getGregorianCalendar().getTime();
-
-        entry.inYear = new SimpleDateFormat("MMM d", Locale.getDefault()).format(greg);
+        entry.inYear = target.getGregorianCalendar().getTime();
     }
     private void openRingtonePicker() {
         Intent intent = new Intent(RingtoneManager.ACTION_RINGTONE_PICKER);
@@ -851,8 +841,6 @@ public class MainActivity extends MessageActivity {
     }
     private void refreshYahrzeitList() {
         List<YahrzeitEntry> list = UserSettings.loadYahrzeitList(this);
-
-        // Recreate adapter or update it
         yahrzeitAdapter.setEntries(list);
         yahrzeitAdapter.notifyDataSetChanged();
     }

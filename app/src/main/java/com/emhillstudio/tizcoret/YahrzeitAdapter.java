@@ -26,7 +26,6 @@ public class YahrzeitAdapter extends RecyclerView.Adapter<RecyclerView.ViewHolde
     private List<YahrzeitEntry> entries;
     private OnEntryChangedListener listener;
     private final SharedPreferences prefs;
-
     public interface OnEntryChangedListener {
         void onEntryChanged(YahrzeitEntry entry);
     }
@@ -74,9 +73,7 @@ public class YahrzeitAdapter extends RecyclerView.Adapter<RecyclerView.ViewHolde
 
         RowViewHolder holder = new RowViewHolder(v);
         String format = prefs.getString("date_format", "MM/dd/yyyy");
-        EditText diedDate = holder.dateField;
-        diedDate.setHint(format.toUpperCase(Locale.US));
-
+        holder.dateField.setHint(format.toUpperCase(Locale.US));
         return holder;
     }
 
@@ -99,17 +96,22 @@ public class YahrzeitAdapter extends RecyclerView.Adapter<RecyclerView.ViewHolde
         row.isBinding = true;
 
         row.nameField.setText(entry.name != null ? entry.name : "");
+        String format = prefs.getString("date_format", "MM/dd/yyyy");
+        row.dateField.setHint(format.toUpperCase(Locale.US));
 
         if (entry.diedDate != null) {
-            String format = prefs.getString("date_format", "MM/dd/yyyy");
-            SimpleDateFormat sdf = new SimpleDateFormat(format, Locale.US);
-            row.dateField.setText(sdf.format(entry.diedDate));
+            row.dateField.setText(getDateFormat().format(entry.diedDate));
         } else {
             row.dateField.setText("");
         }
 
+        if (entry.inYear != null) {
+            row.inYearField.setText(getDateFormat().format(entry.inYear));
+        } else {
+            row.inYearField.setText("");
+        }
+
         row.hebrewField.setText(entry.hebrewDate != null ? entry.hebrewDate : "");
-        row.inYearField.setText(entry.inYear != null ? entry.inYear : "");
 
         row.isBinding = false;
 
@@ -142,6 +144,8 @@ public class YahrzeitAdapter extends RecyclerView.Adapter<RecyclerView.ViewHolde
 
             @Override
             public void afterTextChanged(Editable s) {
+                row.dateField.setBackgroundResource(0);
+
                 if (row.isBinding || isEditing) return;
                 isEditing = true;
 
@@ -163,32 +167,40 @@ public class YahrzeitAdapter extends RecyclerView.Adapter<RecyclerView.ViewHolde
                 row.dateField.setText(formatted.toString());
                 row.dateField.setSelection(formatted.length());
 
-                if (digits.length() == 8 && isValidDate(formatted.toString())) {
-                    Date parsed = parseDate(formatted.toString());
-                    entry.diedDate = parsed;
-                    boolean noname = entry.name.trim().isEmpty();
+                if (digits.length() == 8) {
+                    if (isValidDate(formatted.toString())) {
+                        Date parsed = parseDate(formatted.toString());
+                        entry.diedDate = parsed;
+                        boolean noname = entry.name.trim().isEmpty();
 
-                    if (noname) {
-                        row.nameField.setBackgroundResource(R.drawable.red_border);
+                        if (noname) {
+                            row.nameField.setBackgroundResource(R.drawable.red_border);
+                        } else {
+                            row.nameField.setBackgroundResource(0);
+                        }
+
+                        entry.hebrewDate = HebrewUtils.toHebrewDate(parsed);
+                        entry.inYear = HebrewUtils.nextYahrzeit(parsed);
+
+                        if (listener != null && !entry.name.trim().isEmpty() && entry.isComplete())
+                            listener.onEntryChanged(entry);
+
+                        row.hebrewField.setText(entry.hebrewDate);
+                        row.inYearField.setText(getDateFormat().format(entry.inYear));
                     }
                     else {
-                        row.nameField.setBackgroundResource(0);
+                        row.dateField.setBackgroundResource(R.drawable.red_border);
                     }
-
-                    entry.hebrewDate = HebrewUtils.toHebrewDate(parsed);
-                    entry.inYear = HebrewUtils.computeInYear(parsed);
-
-                    if (listener != null && !entry.name.trim().isEmpty() && entry.isComplete())
-                        listener.onEntryChanged(entry);
-
-                    row.hebrewField.setText(entry.hebrewDate);
-                    row.inYearField.setText(entry.inYear);
                 }
-
                 isEditing = false;
             }
         };
         row.dateField.addTextChangedListener(row.dateWatcher);
+    }
+    private SimpleDateFormat getDateFormat() {
+        String format = prefs.getString("date_format", "MM/dd/yyyy");
+        SimpleDateFormat sdf = new SimpleDateFormat(format, Locale.US);
+        return sdf;
     }
 
     // ---------------------------------------------------------
@@ -196,7 +208,7 @@ public class YahrzeitAdapter extends RecyclerView.Adapter<RecyclerView.ViewHolde
     // ---------------------------------------------------------
     private boolean isValidDate(String text) {
         try {
-            SimpleDateFormat sdf = new SimpleDateFormat("MM/dd/yyyy", Locale.US);
+            SimpleDateFormat sdf = getDateFormat();
             sdf.setLenient(false);
             sdf.parse(text);
             return true;
@@ -207,7 +219,7 @@ public class YahrzeitAdapter extends RecyclerView.Adapter<RecyclerView.ViewHolde
 
     private Date parseDate(String text) {
         try {
-            SimpleDateFormat sdf = new SimpleDateFormat("MM/dd/yyyy", Locale.US);
+            SimpleDateFormat sdf = getDateFormat();
             sdf.setLenient(false);
             return sdf.parse(text);
         } catch (Exception e) {
@@ -219,7 +231,7 @@ public class YahrzeitAdapter extends RecyclerView.Adapter<RecyclerView.ViewHolde
     // Public API
     // ---------------------------------------------------------
     public void addEmptyRow() {
-        entries.add(new YahrzeitEntry("", null, "", ""));
+        entries.add(new YahrzeitEntry("", null, "", null));
         notifyItemInserted(entries.size() - 1);
     }
 
