@@ -75,13 +75,12 @@ public class MainActivity extends MessageActivity {
     private List<YahrzeitEntry> list = new ArrayList<>();
     private static SharedPreferences prefs;
     private static final int RINGTONE_REQUEST_CODE = 1234;
-    private static final int REQ_CALENDAR = 100;
+    private static final int REQ_CALENDAR = 2001;
     private static final int REQ_LOCATION = 1001;
     private enum PendingAction {
         NONE,
         UPDATE_CALENDAR,
         ADD_SHABBAT_EVENTS,
-        GET_LOCATION
     }
     private PendingAction pendingAction = PendingAction.NONE;
 
@@ -180,7 +179,7 @@ public class MainActivity extends MessageActivity {
                             Manifest.permission.READ_CALENDAR,
                             Manifest.permission.WRITE_CALENDAR
                     },
-                    2001
+                    REQ_CALENDAR
             );
         }
 
@@ -260,6 +259,8 @@ public class MainActivity extends MessageActivity {
     }
 
     private void updateCalendar() {
+        boolean done = true;
+        String err = "Calendar updated";
         for (YahrzeitEntry entry : yahrzeitAdapter.getEntries()) {
             if(entry.name.isEmpty() || entry.diedDate.toString().isEmpty())
                 continue;
@@ -276,13 +277,15 @@ public class MainActivity extends MessageActivity {
                 if(insertCalendarEvent(candleLighting.getTime(), msg)) {
                     scheduleAlarm(candleLighting.getTime(), "yahrzeit",entry.diedDate);
                 }
-                showMessage("Calendar updated", true);
             } catch (Exception e) {
                 String format = prefs.getString("date_format", "MM/dd/yyyy");
                 SimpleDateFormat sdf = new SimpleDateFormat(format, Locale.US);
-                showMessage("Cannot parse date "+sdf.format(entry.inYear)+"\n"+e.toString(), false);
+                err = "Cannot parse date "+sdf.format(entry.inYear)+"\n"+ e;
+                done = false;
+                break;
             }
         }
+        showMessage(err, done);
     }
     private boolean setCalendarPerms() {
         if (ActivityCompat.checkSelfPermission(this, Manifest.permission.WRITE_CALENDAR)
@@ -296,7 +299,7 @@ public class MainActivity extends MessageActivity {
                             Manifest.permission.READ_CALENDAR,
                             Manifest.permission.WRITE_CALENDAR
                     },
-                    2001
+                    REQ_CALENDAR
             );
             return false; // STOP HERE
         }
@@ -365,7 +368,7 @@ public class MainActivity extends MessageActivity {
             ActivityCompat.requestPermissions(
                     this,
                     new String[]{Manifest.permission.ACCESS_FINE_LOCATION},
-                    1001
+                    REQ_LOCATION
             );
             return;
         }
@@ -410,7 +413,6 @@ public class MainActivity extends MessageActivity {
                     "Would you like to add Shabbat times for next Friday to your calendar?",
                     () -> {
                         pendingAction = PendingAction.ADD_SHABBAT_EVENTS;
-
                         if (hasLocationPermission() && hasCalendarPermission()) {
                             addNextFridayShabbatEvents();
                             return;
@@ -424,7 +426,7 @@ public class MainActivity extends MessageActivity {
                     "Would you like to remove Shabbat alarm?",
                     () -> {
                         cancelAlarm(
-                                1001,
+                                REQ_LOCATION,
                                 ShabbatAlarmReceiver.class,
                                 AlarmService.class
                         );
@@ -625,7 +627,7 @@ public class MainActivity extends MessageActivity {
 
         if ("shabbat".equals(event)) {
             receiverClass = ShabbatAlarmReceiver.class;
-            requestCode = 1001;
+            requestCode = REQ_LOCATION;
         } else if ("yahrzeit".equals(event)) {
             receiverClass = YahrzeitAlarmReceiver.class;
             requestCode = diedDate.hashCode();
@@ -764,26 +766,26 @@ public class MainActivity extends MessageActivity {
     private boolean eventAlreadyExists(long calendarId, long startUtc, String title) {
         ContentResolver cr = getContentResolver();
 
-        long minuteStart = Math.round(startUtc / 60000.0) * 60000L;
+        long minuteStart = (startUtc / 60000L) * 60000L;
         long minuteEnd = minuteStart + 59999L;
-        /*
+
         String selection =
-                CalendarContract.Events.CALENDAR_ID + "=? AND " +
+                //CalendarContract.Events.CALENDAR_ID + "=? AND " +
                 CalendarContract.Events.TITLE + "=? AND " +
                 CalendarContract.Events.DTSTART + ">=? AND " +
                 CalendarContract.Events.DTSTART + "<=?";
 
         String[] selectionArgs = new String[]{
-                Long.toString(calendarId),
+                //Long.toString(calendarId),
                 title,
                 Long.toString(minuteStart),
                 Long.toString(minuteEnd)
         };
-        */
 
+/*
         String selection = CalendarContract.Events.TITLE + " = ?";
         String[] selectionArgs = new String[]{ title };
-
+*/
         Cursor cur = cr.query(
                 CalendarContract.Events.CONTENT_URI,
                 new String[]{CalendarContract.Events._ID},
@@ -857,7 +859,6 @@ public class MainActivity extends MessageActivity {
         if (ActivityCompat.checkSelfPermission(this, Manifest.permission.ACCESS_FINE_LOCATION)
                 != PackageManager.PERMISSION_GRANTED) {
 
-            pendingAction = PendingAction.GET_LOCATION;
             ActivityCompat.requestPermissions(
                     this,
                     new String[]{ Manifest.permission.ACCESS_FINE_LOCATION },
