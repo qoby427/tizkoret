@@ -4,6 +4,8 @@ import android.content.BroadcastReceiver;
 import android.content.Context;
 import android.content.Intent;
 
+import org.json.JSONException;
+
 public class BootReceiver extends BroadcastReceiver {
     @Override
     public void onReceive(Context context, Intent intent) {
@@ -15,7 +17,12 @@ public class BootReceiver extends BroadcastReceiver {
             // 2. Restore Shabbat alarm
             String json = UserSettings.getLastShabbatJson(context);
             if (json != null) {
-                new ShabbatAlarmReceiver().scheduleNextAlarm(context, json);
+                try {
+                    new ShabbatAlarmReceiver().scheduleNextAlarm(context, json);
+                }
+                catch (JSONException ex) {
+                    System.out.println("BootReceiver::onReceive: " + ex);
+                }
             }
         }
     }

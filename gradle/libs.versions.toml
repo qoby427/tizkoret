@@ -3,6 +3,7 @@ agp = "9.0.0"
 androidxAppcompat = "1.6.1"
 appcompatVersion = "1.7.0"
 billing = "8.3.0"
+billingVersion = "6.1.0"
 constraintlayoutVersion = "2.1.4"
 geo = "0.8.1"
 googleMaterial = "1.11.0"
@@ -27,6 +28,7 @@ timezoneMap = "1.0.0"
 timezonemapBuilder = "4.5"
 timezonemapUtils = "3.4"
 timezoneMapVersion = "0.3"
+workRuntimeVersion = "2.9.0"
 zmanim = "2.5.0"
 zmanimVersion = "1.15"
 zstdJni = "1.5.7-6"
@@ -36,6 +38,7 @@ workRuntime = "2.11.0"
 appcompat-v161 = { module = "androidx.appcompat:appcompat", version.ref = "androidxAppcompat" }
 appcompat-v170 = { module = "androidx.appcompat:appcompat", version.ref = "appcompatVersion" }
 billing = { module = "com.android.billingclient:billing", version.ref = "billing" }
+billing-v610 = { module = "com.android.billingclient:billing", version.ref = "billingVersion" }
 constraintlayout-v214 = { module = "androidx.constraintlayout:constraintlayout", version.ref = "constraintlayoutVersion" }
 geo = { module = "com.github.davidmoten:geo", version.ref = "geo" }
 gson = { module = "com.google.code.gson:gson", version.ref = "gson" }
@@ -60,6 +63,7 @@ timezone-map-v03 = { module = "com.github.mik3y:timezone-map", version.ref = "ti
 timezonemap-builder = { module = "us.dustinj.timezonemap:timezonemap-builder", version.ref = "timezonemapBuilder" }
 timezonemap-data = { module = "us.dustinj.timezonemap:timezonemap-data", version.ref = "timezonemapBuilder" }
 timezonemap-utils = { module = "us.dustinj.timezonemap:timezonemap-utils", version.ref = "timezonemapUtils" }
+work-runtime-v290 = { module = "androidx.work:work-runtime", version.ref = "workRuntimeVersion" }
 zmanim = { module = "com.kosherjava:zmanim", version.ref = "zmanim" }
 zmanim-v115 = { module = "com.kosherjava:zmanim", version.ref = "zmanimVersion" }
 zmanim-v260 = { module = "com.kosherjava:zmanim", version.ref = "kosherjavaZmanim" }

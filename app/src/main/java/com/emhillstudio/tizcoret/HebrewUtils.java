@@ -129,9 +129,9 @@ public class HebrewUtils {
         // 1. Load location
         SharedPreferences prefs = context.getSharedPreferences(UserSettings.PREFS, Context.MODE_PRIVATE);
 
-        double lat = Double.parseDouble(prefs.getString("lat", "0"));
-        double lon = Double.parseDouble(prefs.getString("lon", "0"));
-        double elev = Double.parseDouble(prefs.getString("elev", "0"));
+        double lat = UserSettings.getLatitude(context);
+        double lon = UserSettings.getLongitude(context);
+        double elev = 300;
 
         // 2. Start from NOW
         Calendar cal = Calendar.getInstance();
@@ -148,24 +148,18 @@ public class HebrewUtils {
         zc.setGeoLocation(new GeoLocation("loc", lat, lon, elev, TimeZone.getDefault()));
         zc.setCalendar(cal);
 
-        Date sunset = zc.getSunset();
-        if (sunset == null) {
-            // fallback: add 7 days
-            return System.currentTimeMillis() + 7L * 24 * 60 * 60 * 1000;
-        }
+        // 5. Next candle lighting
 
-        // 5. Candle-lighting = sunset - 18 minutes
-        long candleMillis = sunset.getTime() - 18 * 60 * 1000;
+        Date candleMillis = zc.getCandleLighting();
 
         // 6. If candle-lighting already passed today, jump to next Friday
-        if (candleMillis <= System.currentTimeMillis()) {
+        if (candleMillis.getTime() <= System.currentTimeMillis()) {
             cal.add(Calendar.DAY_OF_MONTH, 7);
             zc.setCalendar(cal);
-            sunset = zc.getSunset();
-            candleMillis = sunset.getTime() - 18 * 60 * 1000;
+            candleMillis = zc.getCandleLighting();
         }
 
-        return candleMillis;
+        return candleMillis.getTime();
     }
 
     public static long computeNextYahrzeit(Context context, Date diedDate) {

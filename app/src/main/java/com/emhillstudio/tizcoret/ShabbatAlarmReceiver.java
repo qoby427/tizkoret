@@ -3,19 +3,25 @@ package com.emhillstudio.tizcoret;
 import android.app.NotificationChannel;
 import android.app.NotificationManager;
 import android.content.Context;
+import android.content.Intent;
 import android.media.AudioAttributes;
 import android.net.Uri;
 import android.os.Build;
 
 import androidx.core.app.NotificationCompat;
+import androidx.core.content.ContextCompat;
+
+import org.json.JSONException;
+import org.json.JSONObject;
 
 import java.util.Map;
 
 public class ShabbatAlarmReceiver extends AlarmReceiver {
     @Override
-    protected void showEarly(Context context, Map<String, Object> payload) {
-
-        int requestCode = ((Number) payload.get("request_code")).intValue();
+    protected void showEarly(Context context, JSONObject payload) throws JSONException {
+        int requestCode = payload.getInt("request_code");
+        long candleTime = payload.getLong("next_candle_time");
+        long notifTime = payload.getLong("3hour_notif_time");
 
         // Create channel if needed
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
@@ -27,16 +33,20 @@ public class ShabbatAlarmReceiver extends AlarmReceiver {
                     "Shabbat Early Reminder",
                     NotificationManager.IMPORTANCE_LOW
             );
+
             early.setSound(null, null);   // SILENT
+            early.enableVibration(false);
 
             nm.createNotificationChannel(early);
         }
+
+        System.out.println("ShabbatAlarmReceiver::showEarly: notification time " + UserSettings.getTimestamp(notifTime));
 
         NotificationCompat.Builder builder =
                 new NotificationCompat.Builder(context, "shabbat_early")
                         .setSmallIcon(R.drawable.ic_shabbat_candles)
                         .setContentTitle("Candle Lighting Reminder")
-                        .setContentText("Candle lighting is in 3 hours")
+                        .setContentText("Candle lighting is at " + UserSettings.getTimestamp(candleTime))
                         .setPriority(NotificationCompat.PRIORITY_LOW)
                         .setAutoCancel(true)
                         .setSound(null);  // SILENT
@@ -47,45 +57,38 @@ public class ShabbatAlarmReceiver extends AlarmReceiver {
         nm.notify(requestCode, builder.build());
     }
     @Override
-    protected void showFinal(Context context, Map<String, Object> payload) {
+    protected void showFinal(Context context, JSONObject payload) throws JSONException {
+        int requestCode = payload.getInt("request_code");
+        long candleTime = payload.getLong("next_candle_time");
+        long alarmTime = payload.getLong("5min_alarm_time");
 
-        int requestCode = ((Number) payload.get("request_code")).intValue();
+        // Cancel early notification
+        NotificationManager nm =
+                (NotificationManager) context.getSystemService(Context.NOTIFICATION_SERVICE);
+        nm.cancel(requestCode);
 
-        // Create channel if needed
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-            NotificationManager nm = (NotificationManager)
-                    context.getSystemService(Context.NOTIFICATION_SERVICE);
+        JSONObject json = new JSONObject();
+        json.put("candle_time", UserSettings.getTimestamp(candleTime));
+        json.put("event", "shabbat");
+        json.put("request_code", AlarmUtils.REQ_5MIN);
 
-            NotificationChannel fin = new NotificationChannel(
-                    "shabbat_final",
-                    "Shabbat Alarm",
-                    NotificationManager.IMPORTANCE_HIGH
-            );
+        // Start alarm service
+        Intent svc = new Intent(context, ShabbatAlarmService.class);
+        svc.setAction("ALARM");
+        svc.putExtra("payload", json.toString());
 
-            Uri sound = UserSettings.getShabbatRingtone(context);
-            AudioAttributes attrs = new AudioAttributes.Builder()
-                    .setUsage(AudioAttributes.USAGE_ALARM)
-                    .build();
-            fin.setSound(sound, attrs);
-
-            nm.createNotificationChannel(fin);
+        try {
+            System.out.println("ShabbatAlarmReceiver::showFinal: alarm time " + UserSettings.getTimestamp(alarmTime));
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+                context.startForegroundService(svc);
+            } else {
+                context.startService(svc);
+            }
         }
-
-        Uri sound = UserSettings.getShabbatRingtone(context);
-
-        NotificationCompat.Builder builder =
-                new NotificationCompat.Builder(context, "shabbat_final")
-                        .setSmallIcon(R.drawable.ic_shabbat_candles)
-                        .setContentTitle("Candle Lighting")
-                        .setContentText("Time to light candles")
-                        .setPriority(NotificationCompat.PRIORITY_HIGH)
-                        .setAutoCancel(true)
-                        .setSound(sound);
-
-        NotificationManager nm = (NotificationManager)
-                context.getSystemService(Context.NOTIFICATION_SERVICE);
-
-        nm.notify(requestCode, builder.build());
+        catch (Exception e)
+        {
+            System.out.println("ShabbatAlarmReceiver::showFinal: exception " + e);
+        }
     }
 }
 

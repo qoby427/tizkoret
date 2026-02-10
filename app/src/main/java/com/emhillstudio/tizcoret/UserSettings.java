@@ -14,9 +14,12 @@ import org.json.JSONException;
 import org.json.JSONObject;
 
 import java.lang.reflect.Type;
+import java.text.SimpleDateFormat;
 import java.util.ArrayList;
+import java.util.Date;
 import java.util.Iterator;
 import java.util.List;
+import java.util.Locale;
 import java.util.Map;
 
 public class UserSettings {
@@ -100,10 +103,12 @@ public class UserSettings {
             obj.put("hebrewDate", hebrewDate);
 
             arr.put(obj);
-        } catch (JSONException ignored) {}
+        } catch (JSONException ignored) {
+        }
 
         saveYahrzeitList(ctx, arr);
     }
+
     public static void saveYahrzeitList(Context context, List<YahrzeitEntry> list) {
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.N) {
             list.removeIf(e ->
@@ -116,13 +121,15 @@ public class UserSettings {
 
         prefs(context).edit().putString(KEY_YAHRZEIT_LIST, json).apply();
     }
+
     public static List<YahrzeitEntry> loadYahrzeitList(Context context) {
         String json = prefs(context).getString(KEY_YAHRZEIT_LIST, null);
 
         if (json == null) return new ArrayList<>();
 
         Gson gson = new Gson();
-        Type type = new TypeToken<List<YahrzeitEntry>>(){}.getType();
+        Type type = new TypeToken<List<YahrzeitEntry>>() {
+        }.getType();
         List<YahrzeitEntry> list = gson.fromJson(json, type);
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.N) {
             list.removeIf(e ->
@@ -145,6 +152,7 @@ public class UserSettings {
 
         saveYahrzeitList(ctx, newArr);
     }
+
     public static void setLastShabbatJson(Context context, String json) {
         prefs(context)
                 .edit()
@@ -155,20 +163,22 @@ public class UserSettings {
     public static String getLastShabbatJson(Context context) {
         return prefs(context).getString(KEY_SHABBAT_JSON, null);
     }
-    public static void saveYahrzeitJson(Context context, String json) {
+
+    public static void saveYahrzeitJson(Context context, String json) throws JSONException {
         // Load existing list
         List<String> list = loadYahrzeitJsonList(context);
-        if (list == null) list = new ArrayList<>();
+        if (list == null)
+            list = new ArrayList<>();
 
         // Parse new payload
-        Map<String, Object> newPayload = new Gson().fromJson(json, Map.class);
-        int newId = ((Number) newPayload.get("entry_id")).intValue();
+        JSONObject newPayload = new JSONObject(json);
+        int newId = newPayload.getInt("entry_id");
 
         // Remove any existing entry with the same entry_id
         Iterator<String> it = list.iterator();
         while (it.hasNext()) {
-            Map<String, Object> p = new Gson().fromJson(it.next(), Map.class);
-            int id = ((Number) p.get("entry_id")).intValue();
+            JSONObject p = new JSONObject(it.next());
+            int id = p.getInt("entry_id");
             if (id == newId) {
                 it.remove();
                 break;
@@ -181,16 +191,19 @@ public class UserSettings {
         // Save back
         prefs(context).edit().putString("yahrzeit_json_list", new Gson().toJson(list)).apply();
     }
+
     public static List<String> loadYahrzeitJsonList(Context context) {
         String json = prefs(context).getString("yahrzeit_json_list", null);
         if (json == null) return new ArrayList<>();
 
-        Type type = new TypeToken<List<String>>(){}.getType();
+        Type type = new TypeToken<List<String>>() {}.getType();
         return new Gson().fromJson(json, type);
     }
+
     public static void clearAllYahrzeitJson(Context context) {
         prefs(context).edit().remove(UserSettings.KEY_YAHRZEIT_LIST).apply();
     }
+
     public static Uri getYahrzeitRingtone(Context context) {
         String uriString = prefs(context).getString("yahrzeit_ringtone", null);
 
@@ -200,9 +213,11 @@ public class UserSettings {
         // Fallback to system default alarm sound
         return RingtoneManager.getDefaultUri(RingtoneManager.TYPE_ALARM);
     }
+
     public static void setYahrzeitRingtone(Context context, Uri uri) {
         prefs(context).edit().putString("yahrzeit_ringtone", uri.toString()).apply();
     }
+
     public static Uri getShabbatRingtone(Context context) {
         String uriString = prefs(context).getString("shabbat_ringtone", null);
 
@@ -212,13 +227,20 @@ public class UserSettings {
         // Fallback to system default alarm sound
         return RingtoneManager.getDefaultUri(RingtoneManager.TYPE_ALARM);
     }
+
     public static void setShabbatRingtone(Context context, Uri uri) {
         prefs(context).edit().putString("shabbat_ringtone", uri.toString()).apply();
     }
+
     // -----------------------------
     //  Internal
     // -----------------------------
     private static SharedPreferences prefs(Context ctx) {
         return ctx.getSharedPreferences(PREFS, Context.MODE_PRIVATE);
+    }
+
+    public static String getTimestamp(long millis) {
+        SimpleDateFormat sdf = new SimpleDateFormat("h:mm a", Locale.getDefault());
+        return sdf.format(new Date(millis));
     }
 }

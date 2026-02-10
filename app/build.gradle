@@ -91,14 +91,11 @@ dependencies {
 
     implementation libs.geo
     implementation libs.work.runtime
-    implementation "com.android.billingclient:billing:6.1.0"
-    implementation "com.kosherjava:zmanim:2.5.0"
+    implementation libs.billing.v610
+    implementation libs.zmanim
     implementation libs.gson
     implementation libs.material.v1130
-
-    // REMOVE Timeshape completely — it ALWAYS brings timezone data
-    // implementation(libs.timeshape.v2025b26)
-    // If you keep it, it WILL add 20–30 MB of data.
+    implementation libs.work.runtime.v290
 
     testImplementation libs.junit
     androidTestImplementation libs.ext.junit

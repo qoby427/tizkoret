@@ -18,6 +18,7 @@ import com.google.android.gms.location.LocationCallback;
 import com.google.android.gms.location.LocationRequest;
 import com.google.android.gms.location.LocationResult;
 import com.google.android.gms.location.LocationServices;
+import com.google.android.gms.location.Priority;
 
 import java.util.concurrent.atomic.AtomicBoolean;
 
@@ -31,27 +32,41 @@ public class LocationHelper {
     private static final float MAX_ACCEPTABLE_ACCURACY = 50f; // meters
     private static final long MAX_WAIT_TIME_MS = 30000; // 30 seconds max wait
 
-    public static void getAccurateLocation(@NonNull Activity activity,
-                                           @NonNull LocationListener listener) {
-
+    public static void getAccurateLocation(
+            @NonNull Activity activity,
+            @NonNull LocationListener listener
+    ) {
         FusedLocationProviderClient fused = LocationServices.getFusedLocationProviderClient(activity);
         LocationManager lm = (LocationManager) activity.getSystemService(Context.LOCATION_SERVICE);
+
         AtomicBoolean locationFound = new AtomicBoolean(false);
         Handler timeoutHandler = new Handler(Looper.getMainLooper());
 
-        // Timeout
+        // 1️⃣ Permission check — NEVER silently return
+        boolean fine = ActivityCompat.checkSelfPermission(activity,
+                Manifest.permission.ACCESS_FINE_LOCATION) == PackageManager.PERMISSION_GRANTED;
+
+        boolean coarse = ActivityCompat.checkSelfPermission(activity,
+                Manifest.permission.ACCESS_COARSE_LOCATION) == PackageManager.PERMISSION_GRANTED;
+
+        if (!fine && !coarse) {
+            listener.onLocationUnavailable();
+            return;
+        }
+
+        // 2️⃣ Timeout fallback
         timeoutHandler.postDelayed(() -> {
             if (!locationFound.get()) {
                 listener.onLocationUnavailable();
             }
         }, MAX_WAIT_TIME_MS);
 
-        // Fused request
-        LocationRequest request = LocationRequest.create();
-        request.setPriority(LocationRequest.PRIORITY_HIGH_ACCURACY);
-        request.setInterval(1000);
-        request.setFastestInterval(500);
-        request.setNumUpdates(20);
+        // 3️⃣ Fused Location Request
+        LocationRequest request =
+                new LocationRequest.Builder(Priority.PRIORITY_HIGH_ACCURACY, 1000)
+                        .setMinUpdateIntervalMillis(500)
+                        .setMaxUpdates(20)
+                        .build();
 
         LocationCallback fusedCallback = new LocationCallback() {
             @Override
@@ -61,16 +76,15 @@ public class LocationHelper {
 
                     double lat = loc.getLatitude();
                     double lng = loc.getLongitude();
+
                     float accuracy = loc.getAccuracy();
                     long ageMs = System.currentTimeMillis() - loc.getTime();
 
-                    if (!isFallbackLocation(lat, lng) &&
-                            accuracy <= MAX_ACCEPTABLE_ACCURACY &&
-                            ageMs < 60000) {
+                    if (!isFallbackLocation(lat, lng)
+                            && accuracy <= MAX_ACCEPTABLE_ACCURACY
+                            && ageMs < 60000) {
 
                         if (locationFound.compareAndSet(false, true)) {
-                            UserSettings.setLatitude(activity, lat);
-                            UserSettings.setLongitude(activity, lng);
                             fused.removeLocationUpdates(this);
                             listener.onLocationAvailable(lat, lng);
                             return;
@@ -80,19 +94,14 @@ public class LocationHelper {
             }
         };
 
-        if (ActivityCompat.checkSelfPermission(activity, Manifest.permission.ACCESS_FINE_LOCATION)
-                != PackageManager.PERMISSION_GRANTED &&
-                ActivityCompat.checkSelfPermission(activity, Manifest.permission.ACCESS_COARSE_LOCATION)
-                        != PackageManager.PERMISSION_GRANTED) {
-
-            return; // Activity must request permission BEFORE calling this method
-        }
-
         fused.requestLocationUpdates(request, fusedCallback, Looper.getMainLooper());
 
-        // GPS fallback
+        // 4️⃣ GPS fallback
         if (lm != null && lm.isProviderEnabled(LocationManager.GPS_PROVIDER)) {
-            lm.requestLocationUpdates(LocationManager.GPS_PROVIDER, 1000, 0,
+            lm.requestLocationUpdates(
+                    LocationManager.GPS_PROVIDER,
+                    1000,
+                    0,
                     new android.location.LocationListener() {
                         @Override
                         public void onLocationChanged(@NonNull Location loc) {
@@ -101,13 +110,11 @@ public class LocationHelper {
                             float accuracy = loc.getAccuracy();
                             long ageMs = System.currentTimeMillis() - loc.getTime();
 
-                            if (!isFallbackLocation(lat, lng) &&
-                                    accuracy <= MAX_ACCEPTABLE_ACCURACY &&
-                                    ageMs < 60000) {
+                            if (!isFallbackLocation(lat, lng)
+                                    && accuracy <= MAX_ACCEPTABLE_ACCURACY
+                                    && ageMs < 60000) {
 
                                 if (locationFound.compareAndSet(false, true)) {
-                                    UserSettings.setLatitude(activity, lat);
-                                    UserSettings.setLongitude(activity, lng);
                                     lm.removeUpdates(this);
                                     fused.removeLocationUpdates(fusedCallback);
                                     listener.onLocationAvailable(lat, lng);
@@ -118,9 +125,11 @@ public class LocationHelper {
                         @Override public void onProviderEnabled(@NonNull String provider) {}
                         @Override public void onProviderDisabled(@NonNull String provider) {}
                         @Override public void onStatusChanged(String provider, int status, Bundle extras) {}
-                    });
+                    }
+            );
         }
     }
+
 
     private static boolean isFallbackLocation(double lat, double lng) {
         return (lat == 0 && lng == 0)

@@ -9,12 +9,18 @@ import android.os.Build;
 
 import com.google.gson.Gson;
 
+import org.json.JSONException;
+import org.json.JSONObject;
+
+import java.text.SimpleDateFormat;
+import java.util.Date;
 import java.util.HashMap;
+import java.util.Locale;
 import java.util.Map;
 
 public abstract class AlarmReceiver extends BroadcastReceiver {
-    protected abstract void showEarly(Context context, Map<String,Object> payload);
-    protected abstract void showFinal(Context context, Map<String,Object> payload);
+    protected abstract void showEarly(Context context, JSONObject payload) throws JSONException;
+    protected abstract void showFinal(Context context, JSONObject payload) throws JSONException;
 
     @Override
     public void onReceive(Context context, Intent intent) {
@@ -25,9 +31,9 @@ public abstract class AlarmReceiver extends BroadcastReceiver {
             String json = intent.getStringExtra("payload");
             if (json == null) return;
 
-            Map<String, Object> payload = new Gson().fromJson(json, Map.class);
+            JSONObject payload = new JSONObject(json);
 
-            String eventType = (String) payload.get("event_type");
+            String eventType = payload.getString("event_type");
 
             // ---------------------------------------------------------
             // Handle NOTIFICATION event (3 hours before)
@@ -35,39 +41,43 @@ public abstract class AlarmReceiver extends BroadcastReceiver {
             if ("notification".equals(eventType)) {
                 showEarly(context, payload);
             }
-
             // ---------------------------------------------------------
             // Handle ALARM event (5 minutes before)
             // ---------------------------------------------------------
             else if ("alarm".equals(eventType)) {
-
-                // Cancel earlier notification
                 int notifCode = ((Number) payload.get("notification_request_code")).intValue();
-                cancelNotification(context, notifCode);
-                showFinal(context, payload);
+                if(notifCode != 0) {
+                    long candleTime = payload.getLong("next_candle_time");
+                    System.out.println("AlarmReceiver::onReceive: candle time " + UserSettings.getTimestamp(candleTime));
+                    cancelNotification(context, notifCode);
+                    showFinal(context, payload);
+                }
             }
 
             // ---------------------------------------------------------
             // Schedule next cycle
             // ---------------------------------------------------------
-            scheduleNextAlarm(context, json);
+            if(!BuildConfig.DEBUG)
+                scheduleNextAlarm(context, json);
 
         } catch (Exception e) {
-            e.printStackTrace();
+            System.out.println("AlarmReceiver::onReceive: exception " + e);
         }
     }
 
-    protected void scheduleNextAlarm(Context context, String json) {
+    protected void scheduleNextAlarm(Context context, String json) throws JSONException {
 
-        Map<String, Object> base = new Gson().fromJson(json, Map.class);
+        JSONObject base = new JSONObject(json);
 
-        int entryId = ((Number) base.get("entry_id")).intValue();
-        long nextCandleTime = ((Number) base.get("next_candle_time")).longValue();
+        int entryId = base.getInt("entry_id");
+        long nextCandleTime = base.getLong("next_candle_time");
         long now = System.currentTimeMillis();
         if (nextCandleTime < now + 5000) nextCandleTime = now + 60000;
 
+        System.out.println("AlarmReceiver::scheduleNextAlarm: " + UserSettings.getTimestamp(nextCandleTime));
+
         // --- ALARM (5 minutes before) ---
-        Map<String, Object> alarmPayload = new HashMap<>(base);
+        JSONObject alarmPayload = new JSONObject(base.toString());
         alarmPayload.put("event_type", "alarm");
         alarmPayload.put("request_code", entryId * 10 + 1);
         alarmPayload.put("notification_request_code", entryId * 10 + 2);
@@ -76,7 +86,7 @@ public abstract class AlarmReceiver extends BroadcastReceiver {
         schedulePendingEvent(context, alarmPayload);
 
         // --- NOTIFICATION (3 hours before) ---
-        Map<String, Object> notifPayload = new HashMap<>(base);
+        JSONObject notifPayload = new JSONObject(base.toString());
         notifPayload.put("event_type", "notification");
         notifPayload.put("request_code", entryId * 10 + 2);
         notifPayload.put("next_candle_time", nextCandleTime - 3 * 60 * 60 * 1000);
@@ -84,18 +94,18 @@ public abstract class AlarmReceiver extends BroadcastReceiver {
         schedulePendingEvent(context, notifPayload);
     }
 
-    protected void schedulePendingEvent(Context context, Map<String, Object> payload) {
+    protected void schedulePendingEvent(Context context, JSONObject payload) throws JSONException {
         AlarmManager am = (AlarmManager) context.getSystemService(Context.ALARM_SERVICE);
 
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S && !am.canScheduleExactAlarms()) {
             return;
         }
 
-        long nextCandleTime = ((Number) payload.get("next_candle_time")).longValue();
-        int requestCode = ((Number) payload.get("request_code")).intValue();
-        String eventType = (String) payload.get("event_type");
+        long nextCandleTime = payload.getLong("next_candle_time");
+        int requestCode = payload.getInt("request_code");
+        String eventType = payload.getString("event_type");
 
-        String newJson = new Gson().toJson(payload);
+        String newJson = payload.toString();
 
         Intent intent = new Intent(context, getClass());
         intent.putExtra("payload", newJson);
@@ -110,9 +120,11 @@ public abstract class AlarmReceiver extends BroadcastReceiver {
         // If this is the ALARM event, cancel the earlier NOTIFICATION
         // -----------------------------------------------------
         if ("alarm".equals(eventType)) {
-            int notifRequestCode = ((Number) payload.get("notification_request_code")).intValue();
+            int notifRequestCode = payload.getInt("notification_request_code");
             cancelNotification(context, notifRequestCode);
         }
+
+        System.out.println("schedulePendingEvent: " + UserSettings.getTimestamp(nextCandleTime));
 
         try {
             if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
@@ -121,7 +133,7 @@ public abstract class AlarmReceiver extends BroadcastReceiver {
                 am.setExact(AlarmManager.RTC_WAKEUP, nextCandleTime, pi);
             }
         } catch (SecurityException e) {
-            // Exact alarms disabled
+            System.out.println("AlarmReceiver::schedulePendingEvent: exception " + e);
         }
     }
     private void cancelNotification(Context context, int notifRequestCode) {

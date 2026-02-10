@@ -2,9 +2,7 @@ package com.emhillstudio.tizcoret;
 
 import androidx.activity.EdgeToEdge;
 import androidx.activity.SystemBarStyle;
-import androidx.annotation.NonNull;
 import androidx.core.app.ActivityCompat;
-import androidx.core.content.ContextCompat;
 import androidx.core.graphics.Insets;
 import androidx.core.view.ViewCompat;
 import androidx.core.view.WindowCompat;
@@ -24,30 +22,23 @@ import android.content.SharedPreferences;
 import android.content.pm.PackageManager;
 import android.database.Cursor;
 import android.graphics.Color;
-import android.location.Location;
 import android.media.RingtoneManager;
 import android.net.Uri;
 import android.os.Build;
 import android.os.Bundle;
-import android.os.Looper;
-import android.os.StrictMode;
 import android.provider.CalendarContract;
 import android.view.View;
 import android.widget.TextView;
-
-import com.google.android.gms.location.LocationCallback;
-import com.google.android.gms.location.LocationRequest;
-import com.google.android.gms.location.LocationResult;
 import com.google.android.material.button.MaterialButton;
-import com.google.android.gms.location.FusedLocationProviderClient;
-import com.google.android.gms.location.LocationServices;
 import com.google.gson.Gson;
 import com.kosherjava.zmanim.ZmanimCalendar;
 import com.kosherjava.zmanim.hebrewcalendar.HebrewDateFormatter;
 import com.kosherjava.zmanim.util.GeoLocation;
 import com.kosherjava.zmanim.hebrewcalendar.JewishCalendar;
 
-import java.text.ParseException;
+import org.json.JSONException;
+import org.json.JSONObject;
+
 import java.text.SimpleDateFormat;
 import java.time.DayOfWeek;
 import java.time.Instant;
@@ -77,13 +68,15 @@ public class MainActivity extends MessageActivity {
     private static final int RINGTONE_REQUEST_CODE = 1234;
     private static final int REQ_CALENDAR = 2001;
     private static final int REQ_LOCATION = 1001;
+    private static final int SHABBAT_ALARM = 3001;
+
     private enum PendingAction {
         NONE,
         UPDATE_CALENDAR,
         ADD_SHABBAT_EVENTS,
     }
     private PendingAction pendingAction = PendingAction.NONE;
-
+    private ShabbatSchedulerManager shabbatManager;
     @Override
     protected void onResume() {
         super.onResume();
@@ -103,19 +96,6 @@ public class MainActivity extends MessageActivity {
         shabbatStatus = findViewById(R.id.shabbatStatus);
         shabbatToggle = findViewById(R.id.shabbatToggleButton);
         yahrzeitList = findViewById(R.id.yahrzeitList);
-
-        LocationHelper.getAccurateLocation(this, new LocationHelper.LocationListener() {
-            @Override
-            public void onLocationAvailable(double latitude, double longitude) {
-                UserSettings.setLatitude(MainActivity.this, latitude);
-                UserSettings.setLongitude(MainActivity.this, longitude);
-            }
-
-            @Override
-            public void onLocationUnavailable() {
-            }
-        });
-
         // -----------------------------
         //  Shabbat toggle
         // -----------------------------
@@ -230,6 +210,8 @@ public class MainActivity extends MessageActivity {
             }
         }
 
+        shabbatManager = new ShabbatSchedulerManager(this);
+
         if (BuildConfig.DEBUG) {
             //UserSettings.setShabbatAlarmEnabled(this, false);
             //updateShabbatUI(false);
@@ -316,23 +298,16 @@ public class MainActivity extends MessageActivity {
         // 1️⃣ LOCATION permission result
         if (requestCode == REQ_LOCATION) {
             if (granted) {
-                // Now that location is allowed, continue the flow:
-                // → request calendar permission next
-                if (setCalendarPerms()) {
-                    // Calendar permission already granted
-                    if (pendingAction == PendingAction.ADD_SHABBAT_EVENTS) {
-                        addNextFridayShabbatEvents();
-                    } else if (pendingAction == PendingAction.UPDATE_CALENDAR) {
-                        updateCalendar();
-                    }
-                }
+                getLocationNow();
             }
+            return;
         }
+
         // 2️⃣ CALENDAR permission result
-        else if (requestCode == REQ_CALENDAR) {
+        if (requestCode == REQ_CALENDAR) {
             if (granted) {
                 if (pendingAction == PendingAction.ADD_SHABBAT_EVENTS) {
-                    addNextFridayShabbatEvents();
+                    shabbatManager.enqueueImmediateWorker();
                 } else if (pendingAction == PendingAction.UPDATE_CALENDAR) {
                     updateCalendar();
                 }
@@ -341,7 +316,6 @@ public class MainActivity extends MessageActivity {
             pendingAction = PendingAction.NONE;
         }
     }
-
     // -----------------------------
     //  Shabbat UI
     // -----------------------------
@@ -356,52 +330,6 @@ public class MainActivity extends MessageActivity {
     }
 
     // -----------------------------
-    //  GPS
-    // -----------------------------
-    private void requestGpsCoordinates() {
-        FusedLocationProviderClient fused = LocationServices.getFusedLocationProviderClient(this);
-
-        if (ActivityCompat.checkSelfPermission(this,
-                Manifest.permission.ACCESS_FINE_LOCATION)
-                != PackageManager.PERMISSION_GRANTED) {
-
-            ActivityCompat.requestPermissions(
-                    this,
-                    new String[]{Manifest.permission.ACCESS_FINE_LOCATION},
-                    REQ_LOCATION
-            );
-            return;
-        }
-
-        LocationRequest request = LocationRequest.create();
-        request.setPriority(LocationRequest.PRIORITY_HIGH_ACCURACY);
-        request.setNumUpdates(1);
-        request.setInterval(1000);
-
-        fused.requestLocationUpdates(
-                request,
-                new LocationCallback() {
-                    @Override
-                    public void onLocationResult(LocationResult result) {
-                        Location loc = result.getLastLocation();
-                        if (loc != null) {
-                            UserSettings.setLatitude(
-                                    MainActivity.this,
-                                    loc.getLatitude()
-                            );
-                            UserSettings.setLongitude(
-                                    MainActivity.this,
-                                    loc.getLongitude()
-                            );
-                        }
-                        fused.removeLocationUpdates(this);
-                    }
-                },
-                Looper.getMainLooper()
-        );
-    }
-
-    // -----------------------------
     //  Shabbat calendar insertion
     // -----------------------------
     private void maybeAskToAddShabbat() {
@@ -412,9 +340,14 @@ public class MainActivity extends MessageActivity {
             showQuestion("Add Shabbat Times",
                     "Would you like to add Shabbat times for next Friday to your calendar?",
                     () -> {
+                        Intent serviceIntent = new Intent(this, ShabbatAlarmService.class);
+                        startService(serviceIntent);
+
                         pendingAction = PendingAction.ADD_SHABBAT_EVENTS;
                         if (hasLocationPermission() && hasCalendarPermission()) {
-                            addNextFridayShabbatEvents();
+                            //addNextFridayShabbatEvents();
+                            //shabbatManager.enqueueDailyWorker();
+                            shabbatManager.enqueueImmediateWorker();
                             return;
                         }
 
@@ -430,6 +363,7 @@ public class MainActivity extends MessageActivity {
                                 ShabbatAlarmReceiver.class,
                                 AlarmService.class
                         );
+                        shabbatManager.cancelAll();
                     });
         }
     }
@@ -482,8 +416,13 @@ public class MainActivity extends MessageActivity {
 
         long candleLightingMillis = candleLighting.getTime();
 
-        if(insertCalendarEvent(candleLightingMillis,""))
-            scheduleAlarm(candleLightingMillis, "shabbat", null);
+        if(insertCalendarEvent(candleLightingMillis,"")) {
+            try {
+                scheduleAlarm(candleLightingMillis, "shabbat", null);
+            } catch (JSONException ex) {
+                System.out.println("MainActivity::addNextFridayShabbatEvents: " + ex);
+            }
+        }
     }
 
     private boolean insertCalendarEvent(long candleLightingMillis, String header) {
@@ -608,89 +547,43 @@ public class MainActivity extends MessageActivity {
         }
         return 0;
     }
+    private void scheduleAlarm(long candleLightingMillis, String event, Date diedDate) throws JSONException {
 
-    private void scheduleAlarm(long candleLightingMillis, String event, Date diedDate) {
+        // Build base payload
+        JSONObject payload = new JSONObject();
 
-        long localCandle = toLocalMillis(candleLightingMillis);
-
-        long triggerAt = localCandle - 5 * 60 * 1000;
-
-        AlarmManager am = (AlarmManager) getSystemService(Context.ALARM_SERVICE);
-
-        if (!canScheduleExactAlarms()) {
-            showMessage("Exact alarms are disabled. Please allow them in system settings.", false);
-            return;
-        }
-
-        Class<?> receiverClass;
-        int requestCode;
-
+        // Compute entry_id (stable, deterministic)
+        int entryId;
         if ("shabbat".equals(event)) {
-            receiverClass = ShabbatAlarmReceiver.class;
-            requestCode = REQ_LOCATION;
+            entryId = SHABBAT_ALARM;
         } else if ("yahrzeit".equals(event)) {
-            receiverClass = YahrzeitAlarmReceiver.class;
-            requestCode = diedDate.hashCode();
+            entryId = diedDate.hashCode(); // stable per person
         } else {
             showMessage("Unknown alarm type: " + event, false);
             return;
         }
+        payload.put("entry_id", entryId);
+        payload.put("event_type", "alarm");
+        payload.put("next_candle_time", candleLightingMillis);
+        payload.put("notification_request_code", 0);
 
-        // -----------------------------
-        // Build JSON payload
-        // -----------------------------
-        Map<String, Object> payload = new HashMap<>();
-        payload.put("event", event);
-        payload.put("event_id", requestCode);
+        // Convert to JSON
+        String json = payload.toString();
 
+        // Send broadcast to the appropriate receiver
+        Intent intent;
         if ("shabbat".equals(event)) {
-
-            // Human-readable candle time for notification
-            String candleTimeStr = new SimpleDateFormat("h:mm a", Locale.getDefault())
-                    .format(new Date(candleLightingMillis));
-
-            payload.put("candle_time", candleTimeStr);
-
-            // Compute NEXT week's candle-lighting time
-            long nextWeekMillis = HebrewUtils.computeNextCandleLighting(this);
-
-            payload.put("next_candle_time", nextWeekMillis);
-
-        } else if ("yahrzeit".equals(event)) {
-
-            // Store died date for the receiver
-            payload.put("died_date", diedDate);
-
-            // Compute next year's yahrzeit trigger
-            long nextYearMillis = HebrewUtils.computeNextYahrzeit(this, diedDate);
-            payload.put("next_candle_time", nextYearMillis);
+            intent = new Intent(this, ShabbatAlarmReceiver.class);
+        } else {
+            intent = new Intent(this, YahrzeitAlarmReceiver.class);
         }
 
-        String json = new Gson().toJson(payload);
-
-        // -----------------------------
-        // Build Intent with JSON only
-        // -----------------------------
-        Intent intent = new Intent(this, receiverClass);
         intent.putExtra("payload", json);
 
-        PendingIntent pi = PendingIntent.getBroadcast(
-                this,
-                requestCode,
-                intent,
-                PendingIntent.FLAG_UPDATE_CURRENT | PendingIntent.FLAG_IMMUTABLE
-        );
-
-        try {
-            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
-                am.setExactAndAllowWhileIdle(AlarmManager.RTC_WAKEUP, triggerAt, pi);
-            } else {
-                am.setExact(AlarmManager.RTC_WAKEUP, triggerAt, pi);
-            }
-        } catch (SecurityException e) {
-            showMessage("Cannot schedule exact alarms. Enable permission in system settings.", false);
-        }
+        // Trigger the receiver immediately
+        sendBroadcast(intent);
     }
+
 
     // -------------------------- Stop Services ------------------------------------------------------
     public void stopAllYahrzeits() {
@@ -699,30 +592,36 @@ public class MainActivity extends MessageActivity {
         stopYahrzeitService();
         showMessage("Yahrzeit service stopped.\nUpdate calendar to restore it", true);
     }
-    private void cancelAllYahrzeitAlarms() {
+    private void cancelAllYahrzeitAlarms()  {
         List<String> list = UserSettings.loadYahrzeitJsonList(this);
         if (list == null || list.isEmpty()) return;
 
         AlarmManager am = (AlarmManager) getSystemService(Context.ALARM_SERVICE);
 
         for (String json : list) {
-            Map<String, Object> payload = new Gson().fromJson(json, Map.class);
-            int entryId = ((Number) payload.get("entry_id")).intValue();
+            try {
+                JSONObject payload = new JSONObject(json);
+                int entryId = payload.getInt("entry_id");
 
-            // Cancel both offsets
-            for (int offset = 1; offset <= 2; offset++) {
-                int requestCode = entryId * 10 + offset;
+                // Cancel both offsets
+                for (int offset = 1; offset <= 2; offset++) {
+                    int requestCode = entryId * 10 + offset;
 
-                Intent intent = new Intent(this, YahrzeitAlarmReceiver.class);
-                PendingIntent pi = PendingIntent.getBroadcast(
-                        this,
-                        requestCode,
-                        intent,
-                        PendingIntent.FLAG_UPDATE_CURRENT | PendingIntent.FLAG_IMMUTABLE
-                );
+                    Intent intent = new Intent(this, YahrzeitAlarmReceiver.class);
+                    PendingIntent pi = PendingIntent.getBroadcast(
+                            this,
+                            requestCode,
+                            intent,
+                            PendingIntent.FLAG_UPDATE_CURRENT | PendingIntent.FLAG_IMMUTABLE
+                    );
 
-                am.cancel(pi);
+                    am.cancel(pi);
+                }
             }
+            catch (JSONException ex) {
+                System.out.println("MainActivity::cancelAllYahrzeitAlarms: " + ex);
+            }
+
         }
     }
     private void stopYahrzeitService() {
@@ -850,10 +749,12 @@ public class MainActivity extends MessageActivity {
         long now = System.currentTimeMillis();
         // Fake candle-lighting time = now + 10 seconds + 5 minutes
         long fakeCandleTime = now + 20 * 1000;
-
-        scheduleAlarm(fakeCandleTime, "shabbat", null);
-
-        showMessage("Debug alarm scheduled for 2 min from now", false);
+        try {
+            scheduleAlarm(fakeCandleTime, "shabbat", null);
+            showMessage("Debug alarm scheduled for 2 min from now", false);
+        } catch (JSONException ex) {
+            System.out.println("MainActivity::scheduleDebugAlarm: " + ex);
+        }
     }
     private void requestLocation() {
         if (ActivityCompat.checkSelfPermission(this, Manifest.permission.ACCESS_FINE_LOCATION)
@@ -876,11 +777,19 @@ public class MainActivity extends MessageActivity {
             public void onLocationAvailable(double latitude, double longitude) {
                 UserSettings.setLatitude(MainActivity.this, latitude);
                 UserSettings.setLongitude(MainActivity.this, longitude);
-            }
 
+                // NOW continue the Shabbat flow
+                if (setCalendarPerms()) {
+                    if (pendingAction == PendingAction.ADD_SHABBAT_EVENTS) {
+                        shabbatManager.enqueueImmediateWorker();
+                    } else if (pendingAction == PendingAction.UPDATE_CALENDAR) {
+                        updateCalendar();
+                    }
+                }
+            }
             @Override
             public void onLocationUnavailable() {
-                // Optional: show a message or fallback
+                System.out.println("getLocationNow: location unavailable");
             }
         });
     }

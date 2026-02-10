@@ -8,13 +8,15 @@ import android.net.Uri;
 import android.os.Build;
 import androidx.core.app.NotificationCompat;
 
+import org.json.JSONException;
+import org.json.JSONObject;
+
 import java.util.Map;
 
 public class YahrzeitAlarmReceiver extends AlarmReceiver {
     @Override
-    protected void showEarly(Context context, Map<String, Object> payload) {
-
-        int requestCode = ((Number) payload.get("request_code")).intValue();
+    protected void showEarly(Context context, JSONObject payload) throws JSONException {
+        int requestCode = payload.getInt("request_code");
 
         // Ensure channels exist
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
@@ -46,9 +48,8 @@ public class YahrzeitAlarmReceiver extends AlarmReceiver {
         nm.notify(requestCode, builder.build());
     }
     @Override
-    protected void showFinal(Context context, Map<String, Object> payload) {
-
-        int requestCode = ((Number) payload.get("request_code")).intValue();
+    protected void showFinal(Context context, JSONObject payload) throws JSONException {
+        int requestCode = payload.getInt("request_code");
 
         Uri sound = UserSettings.getYahrzeitRingtone(context);
 

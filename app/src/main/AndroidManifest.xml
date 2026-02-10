@@ -44,6 +44,10 @@
         </activity>
 
         <!-- Alarm Receiver -->
+        <service
+            android:name=".ShabbatAlarmService"
+            android:exported="false"
+            android:foregroundServiceType="mediaPlayback" />
         <receiver
             android:name=".ShabbatAlarmReceiver"
             android:exported="false" />
@@ -58,9 +62,8 @@
             </intent-filter>
         </receiver>
 
-        <!-- Foreground Service for alarm playback -->
         <service
-            android:name=".AlarmService"
+            android:name=".ShabbatAlarmService"
             android:exported="false"
             android:foregroundServiceType="mediaPlayback" />
         <activity android:name=".AboutActivity" />
