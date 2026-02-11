@@ -143,7 +143,7 @@ public class AlarmService extends Service {
         String text = "Tap STOP to silence the alarm";
 
         if ("shabbat".equals(eventType) && candleTime != null)
-            text = "Candle lighting at " + candleTime;
+            text = "Shabbat candle lighting at " + candleTime;
 
         return new NotificationCompat.Builder(this, "alarm_channel")
                 .setContentTitle(title)

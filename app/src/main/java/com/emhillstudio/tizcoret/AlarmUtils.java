@@ -7,15 +7,8 @@ import android.content.Context;
 import android.content.Intent;
 import android.content.SharedPreferences;
 
-import com.google.gson.Gson;
-
 import org.json.JSONException;
 import org.json.JSONObject;
-
-import java.text.SimpleDateFormat;
-import java.util.Date;
-import java.util.Locale;
-import java.util.Map;
 
 public class AlarmUtils {
 
@@ -26,10 +19,10 @@ public class AlarmUtils {
     // PUBLIC API
     // ------------------------------------------------------------
     @SuppressLint("ScheduleExactAlarm")
-    public static void schedule3HourAlarm(Context context, long triggerAtMillis) {
+    public static void schedule3HourNotif(Context context, long triggerAtMillis) {
         AlarmManager am = (AlarmManager) context.getSystemService(Context.ALARM_SERVICE);
         if (am != null) {
-            System.out.println("AlarmUtils::schedule3HourAlarm: notif time " + UserSettings.getTimestamp(triggerAtMillis));
+            UserSettings.log("AlarmUtils::schedule3HourNotif time " + UserSettings.getTimestamp(triggerAtMillis));
             try {
                 PendingIntent pi = get3HourPendingIntent(context);
                 am.setExactAndAllowWhileIdle(
@@ -37,17 +30,18 @@ public class AlarmUtils {
                         triggerAtMillis,
                         pi
                 );
-            }
-            catch (JSONException ex) {
+            } catch (JSONException ex) {
                 System.out.println("schedule3HourAlarm: " + ex);
             }
         }
     }
+
+
     @SuppressLint("ScheduleExactAlarm")
     public static void schedule5MinuteAlarm(Context context, long triggerAtMillis) {
         AlarmManager am = (AlarmManager) context.getSystemService(Context.ALARM_SERVICE);
         if (am != null) {
-            System.out.println("AlarmUtils::schedule5MinuteAlarm: alarm time " + UserSettings.getTimestamp(triggerAtMillis));
+            UserSettings.log("AlarmUtils::schedule5MinuteAlarm alarm time " + UserSettings.getTimestamp(triggerAtMillis));
             try {
                 PendingIntent pi = get5MinutePendingIntent(context);
                 am.setExactAndAllowWhileIdle(
@@ -55,14 +49,13 @@ public class AlarmUtils {
                         triggerAtMillis,
                         pi
                 );
-            }
-            catch (JSONException ex) {
+            } catch (JSONException ex) {
                 System.out.println("AlarmUtils::schedule5MinuteAlarm: exception \n" + ex);
             }
         }
     }
 
-    public static void cancel3HourAlarm(Context context) {
+    public static void cancel3HourNotif(Context context) {
         AlarmManager am = (AlarmManager) context.getSystemService(Context.ALARM_SERVICE);
         try {
             PendingIntent pi = get3HourPendingIntent(context);
@@ -70,8 +63,7 @@ public class AlarmUtils {
             if (am != null) {
                 am.cancel(pi);
             }
-        }
-        catch (JSONException ex) {
+        } catch (JSONException ex) {
             System.out.println("cancel3HourAlarm: " + ex);
         }
     }
@@ -84,8 +76,7 @@ public class AlarmUtils {
             if (am != null) {
                 am.cancel(pi);
             }
-        }
-        catch (JSONException ex) {
+        } catch (JSONException ex) {
             System.out.println("cancel5MinuteAlarm: " + ex);
         }
     }
@@ -98,15 +89,15 @@ public class AlarmUtils {
         SharedPreferences prefs = context.getSharedPreferences(UserSettings.PREFS, Context.MODE_PRIVATE);
         String json = prefs.getString("payload", "{}");
         JSONObject payload = new JSONObject(json.toString());
-        if(BuildConfig.DEBUG) {
+        if (UserSettings.isDebug()) {
             long candleTime = payload.getLong("next_candle_time");
-            System.out.println("AlarmUtils::get3HourPendingIntent: candle time " + UserSettings.getTimestamp(candleTime));
+            UserSettings.log("AlarmUtils::get3HourPendingIntent candle time " + UserSettings.getTimestamp(candleTime));
         }
         payload.put("event_type", "notification");
         String newjson = payload.toString();
 
         Intent intent = new Intent(context, ShabbatAlarmReceiver.class);
-        intent.setAction("SHABBAT_3HR_ALARM");
+        intent.setAction("SHABBAT_3HR_NOTIFICATION");
         intent.putExtra("payload", newjson);
 
         return PendingIntent.getBroadcast(

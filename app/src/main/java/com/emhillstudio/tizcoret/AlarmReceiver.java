@@ -1,10 +1,14 @@
 package com.emhillstudio.tizcoret;
 
+import static android.content.Context.MODE_PRIVATE;
+
+import android.annotation.SuppressLint;
 import android.app.AlarmManager;
 import android.app.PendingIntent;
 import android.content.BroadcastReceiver;
 import android.content.Context;
 import android.content.Intent;
+import android.content.SharedPreferences;
 import android.os.Build;
 
 import com.google.gson.Gson;
@@ -21,9 +25,12 @@ import java.util.Map;
 public abstract class AlarmReceiver extends BroadcastReceiver {
     protected abstract void showEarly(Context context, JSONObject payload) throws JSONException;
     protected abstract void showFinal(Context context, JSONObject payload) throws JSONException;
+    protected static SharedPreferences prefs;
 
     @Override
     public void onReceive(Context context, Intent intent) {
+        prefs = context.getSharedPreferences(UserSettings.PREFS, MODE_PRIVATE);
+
         try {
             // ---------------------------------------------------------
             // Extract and parse payload
@@ -46,18 +53,23 @@ public abstract class AlarmReceiver extends BroadcastReceiver {
             // ---------------------------------------------------------
             else if ("alarm".equals(eventType)) {
                 int notifCode = ((Number) payload.get("notification_request_code")).intValue();
-                if(notifCode != 0) {
+                if (notifCode != 0) {
+
                     long candleTime = payload.getLong("next_candle_time");
-                    System.out.println("AlarmReceiver::onReceive: candle time " + UserSettings.getTimestamp(candleTime));
+                    UserSettings.log("AlarmReceiver::onReceive: 5‑min alarm, candle time " + UserSettings.getTimestamp(candleTime));
+
+                    // Cancel early notification
                     cancelNotification(context, notifCode);
+
                     showFinal(context, payload);
+
+                    return;
                 }
             }
-
             // ---------------------------------------------------------
             // Schedule next cycle
             // ---------------------------------------------------------
-            if(!BuildConfig.DEBUG)
+            if(!UserSettings.isDebug())
                 scheduleNextAlarm(context, json);
 
         } catch (Exception e) {
@@ -74,7 +86,7 @@ public abstract class AlarmReceiver extends BroadcastReceiver {
         long now = System.currentTimeMillis();
         if (nextCandleTime < now + 5000) nextCandleTime = now + 60000;
 
-        System.out.println("AlarmReceiver::scheduleNextAlarm: " + UserSettings.getTimestamp(nextCandleTime));
+        UserSettings.log("AlarmReceiver::scheduleNextAlarm: " + UserSettings.getTimestamp(nextCandleTime));
 
         // --- ALARM (5 minutes before) ---
         JSONObject alarmPayload = new JSONObject(base.toString());
@@ -151,5 +163,29 @@ public abstract class AlarmReceiver extends BroadcastReceiver {
             am.cancel(pi);
             pi.cancel();
         }
+    }
+    @SuppressLint("ScheduleExactAlarm")
+    public void scheduleFinalAlarm(Context context, long triggerAt, JSONObject payload) {
+
+        Intent intent = new Intent(context, getClass());
+        intent.setAction("FINAL_ALARM");
+        intent.putExtra("payload", payload.toString());
+
+        PendingIntent pi = PendingIntent.getBroadcast(
+                context,
+                5000,  // unique requestCode for final alarm
+                intent,
+                PendingIntent.FLAG_UPDATE_CURRENT | PendingIntent.FLAG_IMMUTABLE
+        );
+
+        AlarmManager am = (AlarmManager) context.getSystemService(Context.ALARM_SERVICE);
+
+        // Use AlarmClockInfo so Android treats this as a user-visible alarm
+        AlarmManager.AlarmClockInfo info =
+                new AlarmManager.AlarmClockInfo(triggerAt, pi);
+
+        am.setAlarmClock(info, pi);
+
+        UserSettings.log("AlarmReceiver::scheduleFinalAlarm → scheduled at " + UserSettings.getTimestamp(triggerAt));
     }
 }

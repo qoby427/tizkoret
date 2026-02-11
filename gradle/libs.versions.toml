@@ -8,6 +8,7 @@ constraintlayoutVersion = "2.1.4"
 geo = "0.8.1"
 googleMaterial = "1.11.0"
 googleMaterialVersion = "1.13.0"
+googlePlayServicesLocation = "21.2.0"
 gson = "2.13.2"
 junit = "4.13.2"
 junitVersion = "1.3.0"
@@ -55,6 +56,7 @@ material-v1120 = { module = "com.google.android.material:material", version.ref 
 material-v1130 = { module = "com.google.android.material:material", version.ref = "googleMaterialVersion" }
 play-services-location = { module = "com.google.android.gms:play-services-location", version.ref = "playServicesLocation" }
 play-services-location-v2101 = { module = "com.google.android.gms:play-services-location", version.ref = "playServicesLocationVersion" }
+play-services-location-v2120 = { module = "com.google.android.gms:play-services-location", version.ref = "googlePlayServicesLocation" }
 timeshape = { module = "net.iakovlev:timeshape", version.ref = "timeshape" }
 timeshape-v2023a10 = { module = "net.iakovlev:timeshape", version.ref = "netTimeshape" }
 timeshape-v2025b26 = { module = "net.iakovlev:timeshape", version.ref = "timeshapeVersion" }

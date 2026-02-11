@@ -55,12 +55,21 @@
             android:name=".YahrzeitAlarmReceiver"
             android:exported="false" />
         <receiver
+            android:name=".DailyAlarmReceiver"
+            android:exported="false">
+            <intent-filter>
+                <action android:name="DAILY_VERIFICATION" />
+            </intent-filter>
+        </receiver>
+
+        <receiver
             android:name=".BootReceiver"
             android:exported="false">
             <intent-filter>
                 <action android:name="android.intent.action.BOOT_COMPLETED"/>
             </intent-filter>
         </receiver>
+
 
         <service
             android:name=".ShabbatAlarmService"

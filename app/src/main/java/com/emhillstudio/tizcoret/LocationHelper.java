@@ -19,6 +19,8 @@ import com.google.android.gms.location.LocationRequest;
 import com.google.android.gms.location.LocationResult;
 import com.google.android.gms.location.LocationServices;
 import com.google.android.gms.location.Priority;
+import com.google.android.gms.tasks.Task;
+import com.google.android.gms.tasks.Tasks;
 
 import java.util.concurrent.atomic.AtomicBoolean;
 
@@ -129,8 +131,33 @@ public class LocationHelper {
             );
         }
     }
+    public static Location getWorkerLocation(Context context) {
+        // 1. Check permission
+        if (ActivityCompat.checkSelfPermission(context, Manifest.permission.ACCESS_FINE_LOCATION)
+                != PackageManager.PERMISSION_GRANTED &&
+                ActivityCompat.checkSelfPermission(context, Manifest.permission.ACCESS_COARSE_LOCATION)
+                        != PackageManager.PERMISSION_GRANTED) {
+            return null; // Worker cannot request permission
+        }
 
+        FusedLocationProviderClient client = LocationServices.getFusedLocationProviderClient(context);
 
+        try {
+            // 2. Try last known location (fast)
+            Task<Location> task = client.getLastLocation();
+            Location last = Tasks.await(task);
+            if (last != null) return last;
+
+            // 3. Try current location (still allowed in Worker)
+            Task<Location> currentTask =
+                    client.getCurrentLocation(Priority.PRIORITY_BALANCED_POWER_ACCURACY, null);
+            Location current = Tasks.await(currentTask);
+            return current;
+
+        } catch (Exception e) {
+            return null;
+        }
+    }
     private static boolean isFallbackLocation(double lat, double lng) {
         return (lat == 0 && lng == 0)
                 || (lat < -90 || lat > 90)

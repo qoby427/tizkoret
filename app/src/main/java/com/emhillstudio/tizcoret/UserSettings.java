@@ -5,6 +5,7 @@ import android.content.SharedPreferences;
 import android.media.RingtoneManager;
 import android.net.Uri;
 import android.os.Build;
+import android.util.Log;
 
 import com.google.gson.Gson;
 import com.google.gson.reflect.TypeToken;
@@ -242,5 +243,15 @@ public class UserSettings {
     public static String getTimestamp(long millis) {
         SimpleDateFormat sdf = new SimpleDateFormat("h:mm a", Locale.getDefault());
         return sdf.format(new Date(millis));
+    }
+    public static String getDate(long millis) {
+        SimpleDateFormat sdf = new SimpleDateFormat("dd/mm/yyyy", Locale.getDefault());
+        return sdf.format(new Date(millis));
+    }
+    public static void log(String msg) {
+        Log.d("Tizcoret Debug", msg);
+    }
+    public static boolean isDebug() {
+        return false;//BuildConfig.DEBUG;
     }
 }

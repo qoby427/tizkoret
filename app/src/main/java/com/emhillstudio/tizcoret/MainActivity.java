@@ -30,7 +30,7 @@ import android.provider.CalendarContract;
 import android.view.View;
 import android.widget.TextView;
 import com.google.android.material.button.MaterialButton;
-import com.google.gson.Gson;
+
 import com.kosherjava.zmanim.ZmanimCalendar;
 import com.kosherjava.zmanim.hebrewcalendar.HebrewDateFormatter;
 import com.kosherjava.zmanim.util.GeoLocation;
@@ -49,10 +49,8 @@ import java.time.temporal.TemporalAdjusters;
 import java.util.ArrayList;
 import java.util.Calendar;
 import java.util.Date;
-import java.util.HashMap;
 import java.util.List;
 import java.util.Locale;
-import java.util.Map;
 import java.util.TimeZone;
 
 @SuppressLint("MissingPermission")
@@ -211,12 +209,6 @@ public class MainActivity extends MessageActivity {
         }
 
         shabbatManager = new ShabbatSchedulerManager(this);
-
-        if (BuildConfig.DEBUG) {
-            //UserSettings.setShabbatAlarmEnabled(this, false);
-            //updateShabbatUI(false);
-            //scheduleDebugAlarm();
-        }
     }
     @Override
     protected void onActivityResult(int requestCode, int resultCode, Intent data) {
@@ -298,7 +290,8 @@ public class MainActivity extends MessageActivity {
         // 1️⃣ LOCATION permission result
         if (requestCode == REQ_LOCATION) {
             if (granted) {
-                getLocationNow();
+                if(UserSettings.getLatitude(this) == 0 && UserSettings.getLongitude(this) == 0)
+                    getLocationNow();
             }
             return;
         }
@@ -307,7 +300,7 @@ public class MainActivity extends MessageActivity {
         if (requestCode == REQ_CALENDAR) {
             if (granted) {
                 if (pendingAction == PendingAction.ADD_SHABBAT_EVENTS) {
-                    shabbatManager.enqueueImmediateWorker();
+                    shabbatManager.enqueueWorker();
                 } else if (pendingAction == PendingAction.UPDATE_CALENDAR) {
                     updateCalendar();
                 }
@@ -345,9 +338,7 @@ public class MainActivity extends MessageActivity {
 
                         pendingAction = PendingAction.ADD_SHABBAT_EVENTS;
                         if (hasLocationPermission() && hasCalendarPermission()) {
-                            //addNextFridayShabbatEvents();
-                            //shabbatManager.enqueueDailyWorker();
-                            shabbatManager.enqueueImmediateWorker();
+                            shabbatManager.enqueueWorker();
                             return;
                         }
 
@@ -781,7 +772,7 @@ public class MainActivity extends MessageActivity {
                 // NOW continue the Shabbat flow
                 if (setCalendarPerms()) {
                     if (pendingAction == PendingAction.ADD_SHABBAT_EVENTS) {
-                        shabbatManager.enqueueImmediateWorker();
+                        shabbatManager.enqueueWorker();
                     } else if (pendingAction == PendingAction.UPDATE_CALENDAR) {
                         updateCalendar();
                     }
