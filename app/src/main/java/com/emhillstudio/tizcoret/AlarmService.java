@@ -5,7 +5,6 @@ import android.app.NotificationChannel;
 import android.app.NotificationManager;
 import android.app.PendingIntent;
 import android.app.Service;
-import android.content.Context;
 import android.content.Intent;
 import android.content.SharedPreferences;
 import android.media.AudioManager;
@@ -22,8 +21,6 @@ import androidx.core.app.NotificationCompat;
 import org.json.JSONException;
 import org.json.JSONObject;
 
-import java.util.List;
-
 public class AlarmService extends Service {
 
     private MediaPlayer mediaPlayer;
@@ -32,6 +29,8 @@ public class AlarmService extends Service {
 
     @Override
     public int onStartCommand(Intent intent, int flags, int startId) {
+        SharedPreferences prefs = getSharedPreferences(UserSettings.PREFS, MODE_PRIVATE);
+
         if (intent == null) {
             // System restart, keep ringing
             return START_STICKY;
@@ -45,6 +44,7 @@ public class AlarmService extends Service {
 
         // 2. Parse payload
         String json = intent.getStringExtra("payload");
+
         if(json == null)
             return START_NOT_STICKY;
 
@@ -214,23 +214,5 @@ public class AlarmService extends Service {
     @Override
     public IBinder onBind(Intent intent) {
         return null;
-    }
-
-    // -----------------------------
-    // YAHRZEIT RESCHEDULING
-    // -----------------------------
-    public static void rescheduleAllYahrzeitAlarms(Context context) {
-        List<String> jsonList = UserSettings.loadYahrzeitJsonList(context);
-        if (jsonList == null || jsonList.isEmpty()) return;
-
-        YahrzeitAlarmReceiver receiver = new YahrzeitAlarmReceiver();
-        for (String json : jsonList) {
-            try {
-                receiver.scheduleNextAlarm(context, json);
-            }
-            catch (JSONException ex) {
-                System.out.println("AlarmService::rescheduleAllYahrzeitAlarms: " + ex);
-            }
-        }
     }
 }

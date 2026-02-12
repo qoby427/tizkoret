@@ -22,10 +22,8 @@ public class ShabbatSchedulerManager {
     private static final String KEY_NEXT_3HR = "next_3hr_alarm";
     private static final String KEY_NEXT_5MIN = "next_5min_alarm";
     private static final String KEY_LAST_RUN = "last_scheduling_run";
-    private static final String DAILY_WORK_NAME = "daily_work";
-
     private static final int SHABBAT_ENTRY_ID = 1001;
-    private static boolean first_time = true;
+    private static boolean FIRST_TIME = true;
 
     private final Context context;
     private final SharedPreferences prefs;
@@ -41,6 +39,11 @@ public class ShabbatSchedulerManager {
 
     /** Called when user enables Shabbat or when app opens */
     public boolean scheduleIfNeeded() {
+        // 2. Recompute JSON (canonical source of truth)
+        String json = computePayloadJson();
+        prefs.edit().putString("payload", json).apply();
+        UserSettings.log("ShabbatDailyWorker recomputed and saved JSON payload");
+
         long next3hr = prefs.getLong(KEY_NEXT_3HR, -1);
         long next5min = prefs.getLong(KEY_NEXT_5MIN, -1);
 
@@ -58,10 +61,10 @@ public class ShabbatSchedulerManager {
         long fiveMinuteTime = times[1];
 
         UserSettings.log("ShabbatSchedulerManager::forceReschedule " +
-                UserSettings.getTimestamp(threeHourTime) + " " +
-                UserSettings.getTimestamp(fiveMinuteTime));
+                UserSettings.getLogTime(threeHourTime) + " " +
+                UserSettings.getLogTime(fiveMinuteTime));
 
-        schedule3HourAlarm(threeHourTime);
+        schedule3HourNotification(threeHourTime);
         schedule5MinuteAlarm(fiveMinuteTime);
 
         prefs.edit()
@@ -73,9 +76,9 @@ public class ShabbatSchedulerManager {
 
     /** Cancel all alarms (if user disables Shabbat) */
     public void cancelAll() {
-        // 1. Cancel alarms
-        AlarmUtils.cancel3HourNotif(context);
-        AlarmUtils.cancel5MinuteAlarm(context);
+        // 1. Cancel alarms (current architecture)
+        AlarmUtils.cancelNotification(context, false);
+        AlarmUtils.cancelNotification(context, true);
 
         // 2. Clear stored timestamps
         prefs.edit()
@@ -83,32 +86,9 @@ public class ShabbatSchedulerManager {
                 .remove(KEY_NEXT_5MIN)
                 .apply();
 
-        // 3. Stop daily worker
-        WorkManager.getInstance(context)
-                .cancelUniqueWork("shabbat_daily_verification");
-
-        // 4. Stop immediate worker (if one is pending)
-        WorkManager.getInstance(context)
-                .cancelUniqueWork("shabbat_immediate");
+        // 3. Stop daily alarm (new architecture)
         stopDailyAlarm();
     }
-
-
-    /** Called from BOOT_COMPLETED receiver */
-    public void onBootCompleted() {
-        enqueueWorker();
-        scheduleIfNeeded();
-    }
-
-    /** Exposed for debug UI */
-    public ShabbatStatus getStatus() {
-        return new ShabbatStatus(
-                prefs.getLong(KEY_NEXT_3HR, -1),
-                prefs.getLong(KEY_NEXT_5MIN, -1),
-                prefs.getLong(KEY_LAST_RUN, -1)
-        );
-    }
-
     // ------------------------------------------------------------
     // INTERNAL LOGIC
     // ------------------------------------------------------------
@@ -174,12 +154,12 @@ public class ShabbatSchedulerManager {
             threeHourBefore = c.getTimeInMillis() + 180_000L;
             fiveMinuteBefore = c.getTimeInMillis() + 300_000L;
             UserSettings.log( "ShabbatSchedulerManager::computeShabbatTimes " +
-                    UserSettings.getTimestamp(threeHourBefore) + " " +
-                    UserSettings.getTimestamp(fiveMinuteBefore));
+                    UserSettings.getLogTime(threeHourBefore) + " " +
+                    UserSettings.getLogTime(fiveMinuteBefore));
             long candle_time = HebrewUtils.computeNextCandleLighting(context);
             UserSettings.log( "ShabbatSchedulerManager::computeShabbatTimes " +
-                    UserSettings.getTimestamp(candle_time - 3 * 3600_000L) + " " +
-                    UserSettings.getTimestamp(candle_time - 300_000L));
+                    UserSettings.getLogTime(candle_time - 3 * 3600_000L) + " " +
+                    UserSettings.getLogTime(candle_time - 300_000L));
         }
         else
 
@@ -188,20 +168,12 @@ public class ShabbatSchedulerManager {
             threeHourBefore = candle_time - 3 * 3600_000L;
             fiveMinuteBefore = candle_time - 300_000L;
             UserSettings.log( "ShabbatSchedulerManager::computeShabbatTimes " +
-                    "lighting "+ UserSettings.getTimestamp(candle_time) + " " +
-                    "notif " + UserSettings.getTimestamp(threeHourBefore) + " " +
-                    "alarm " + UserSettings.getTimestamp(fiveMinuteBefore));
+                    "lighting "+ UserSettings.getLogTime(candle_time) + " " +
+                    "notif " + UserSettings.getLogTime(threeHourBefore) + " " +
+                    "alarm " + UserSettings.getLogTime(fiveMinuteBefore));
         }
         return new long[]{threeHourBefore, fiveMinuteBefore};
     }
-
-    private void schedule3HourAlarm(long time) {
-        AlarmUtils.schedule3HourNotif(context, time);
-    }
-    public void savePayload(String json) {
-        prefs.edit().putString("payload", json).apply();
-    }
-
     public String loadPayload() {
         return prefs.getString("payload", "{}");
     }
@@ -220,7 +192,7 @@ public class ShabbatSchedulerManager {
             long candleLighting =
                     UserSettings.isDebug() ? System.currentTimeMillis() :
                     HebrewUtils.computeNextCandleLighting(context);
-            UserSettings.log("ShabbatSchedulerManager::computePayloadJson " + UserSettings.getTimestamp(candleLighting));
+            UserSettings.log("ShabbatSchedulerManager::computePayloadJson " + UserSettings.getLogTime(candleLighting));
             // ---------------------------------------------------------
             // 3. Base payload (NO event_type here!)
             // ---------------------------------------------------------
@@ -239,8 +211,11 @@ public class ShabbatSchedulerManager {
             return "{}";
         }
     }
+    private void schedule3HourNotification(long time) {
+        AlarmUtils.scheduleNotification(context, false, time);
+    }
     private void schedule5MinuteAlarm(long millis) {
-        AlarmUtils.schedule5MinuteAlarm(context, millis);
+        AlarmUtils.scheduleNotification(context, true, millis);
     }
     public void enqueueWorker() {
         scheduleNextWakeup();
@@ -248,7 +223,7 @@ public class ShabbatSchedulerManager {
     public void enqueueImmediateWorker() {
         long last = prefs.getLong("last_processed_shabbat", 0);
         if(last > System.currentTimeMillis()) {
-            UserSettings.log("Shabbat at " + UserSettings.getTimestamp(last) + " processed: skipping  daily worker");
+            UserSettings.log("Shabbat at " + UserSettings.getLogTime(last) + " processed: skipping  daily worker");
             return;
         }
 
@@ -268,10 +243,10 @@ public class ShabbatSchedulerManager {
     public void scheduleNextWakeup() {
         long triggerAt = computeNextDailyTrigger();
 
-        UserSettings.log("Scheduling wakeup at " + UserSettings.getTimestamp(triggerAt));
+        UserSettings.log("ShabbatSchedulerManager::scheduleNextWakeup at " + UserSettings.getLogTime(triggerAt));
 
         Intent intent = new Intent(context, DailyAlarmReceiver.class);
-        intent.setAction("DAILY_VERIFICATION");
+        intent.setAction("DAILY_WAKEUP");
 
         PendingIntent pi = PendingIntent.getBroadcast(
                 context,
@@ -285,7 +260,7 @@ public class ShabbatSchedulerManager {
     }
     public void stopDailyAlarm() {
         Intent intent = new Intent(context, DailyAlarmReceiver.class);
-        intent.setAction("DAILY_VERIFICATION");
+        intent.setAction("DAILY_WAKEUP");
 
         PendingIntent pi = PendingIntent.getBroadcast(
                 context,
@@ -298,37 +273,42 @@ public class ShabbatSchedulerManager {
             AlarmManager am = (AlarmManager) context.getSystemService(Context.ALARM_SERVICE);
             am.cancel(pi);
             pi.cancel();
-            UserSettings.log("stopDailyAlarm(): Daily alarm cancelled");
+            UserSettings.log("stopDailyAlarm: Daily alarm cancelled");
         } else {
-            UserSettings.log("stopDailyAlarm(): No daily alarm to cancel");
+            UserSettings.log("stopDailyAlarm: No daily alarm to cancel");
         }
     }
 
     private long computeNextDailyTrigger() {
         Calendar c = Calendar.getInstance();
+        long trigger = 0;
 
         if (UserSettings.isDebug()) {
             // Fire every 15 minutes in debug mode
-            c.add(Calendar.MINUTE, first_time ? 1 : 15);
-            first_time = false;
-            return c.getTimeInMillis();
-        }
-
-        // ---- RELEASE MODE ----
-        // Fire once per day at 03:00 AM local time
-        c.set(Calendar.HOUR_OF_DAY, 3);
-        c.set(Calendar.MINUTE, 0);
-        c.set(Calendar.SECOND, 0);
-        c.set(Calendar.MILLISECOND, 0);
-
-        long now = System.currentTimeMillis();
-        long trigger = c.getTimeInMillis();
-
-        // If 3 AM already passed today → schedule for tomorrow
-        if (trigger <= now) {
-            c.add(Calendar.DAY_OF_YEAR, 1);
+            c.add(Calendar.MINUTE, FIRST_TIME ? 1 : 15);
             trigger = c.getTimeInMillis();
         }
+        else {
+            // ---- RELEASE MODE ----
+            // Fire once per day at 03:00 AM local time
+            c.set(Calendar.HOUR_OF_DAY, 3);
+            c.set(Calendar.MINUTE, 0);
+            c.set(Calendar.SECOND, 0);
+            c.set(Calendar.MILLISECOND, 0);
+
+            long now = System.currentTimeMillis();
+
+            // If 3 AM already passed today → schedule for tomorrow
+            if (trigger <= now) {
+                if(FIRST_TIME)
+                    c.add(Calendar.MINUTE, 1);
+                else
+                    c.add(Calendar.DAY_OF_YEAR, 1);
+                trigger = c.getTimeInMillis();
+            }
+        }
+
+        FIRST_TIME = false;
 
         return trigger;
     }

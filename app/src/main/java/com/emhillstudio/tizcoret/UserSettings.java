@@ -21,7 +21,6 @@ import java.util.Date;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Locale;
-import java.util.Map;
 
 public class UserSettings {
 
@@ -248,10 +247,14 @@ public class UserSettings {
         SimpleDateFormat sdf = new SimpleDateFormat("dd/mm/yyyy", Locale.getDefault());
         return sdf.format(new Date(millis));
     }
+    public static String getLogTime(long millis) {
+        SimpleDateFormat sdf = new SimpleDateFormat("MMM d h:mm a", Locale.getDefault());
+        return sdf.format(new Date(millis));
+    }
     public static void log(String msg) {
         Log.d("Tizcoret Debug", msg);
     }
     public static boolean isDebug() {
-        return false;//BuildConfig.DEBUG;
+        return false || BuildConfig.DEBUG;
     }
 }
