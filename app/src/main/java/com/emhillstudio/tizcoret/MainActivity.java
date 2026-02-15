@@ -74,7 +74,7 @@ public class MainActivity extends MessageActivity {
         ADD_SHABBAT_EVENTS,
     }
     private PendingAction pendingAction = PendingAction.NONE;
-    private ShabbatSchedulerManager shabbatManager;
+    private EventManager shabbatManager;
     @Override
     protected void onResume() {
         super.onResume();
@@ -87,6 +87,7 @@ public class MainActivity extends MessageActivity {
         setContentView(R.layout.activity_main);
 
         prefs = getSharedPreferences(UserSettings.PREFS, MODE_PRIVATE);
+        prefs.edit().putLong("debug_last_candle", 0).apply();
 
         // -----------------------------
         //  UI references
@@ -208,7 +209,7 @@ public class MainActivity extends MessageActivity {
             }
         }
 
-        shabbatManager = new ShabbatSchedulerManager(this);
+        shabbatManager = new EventManager(this);
     }
     @Override
     protected void onActivityResult(int requestCode, int resultCode, Intent data) {
@@ -300,7 +301,7 @@ public class MainActivity extends MessageActivity {
         if (requestCode == REQ_CALENDAR) {
             if (granted) {
                 if (pendingAction == PendingAction.ADD_SHABBAT_EVENTS) {
-                    shabbatManager.enqueueWorker();
+                    shabbatManager.scheduleIfNeeded();
                 } else if (pendingAction == PendingAction.UPDATE_CALENDAR) {
                     updateCalendar();
                 }
@@ -333,12 +334,12 @@ public class MainActivity extends MessageActivity {
             showQuestion("Add Shabbat Times",
                     "Would you like to add Shabbat times for next Friday to your calendar?",
                     () -> {
-                        Intent serviceIntent = new Intent(this, ShabbatAlarmService.class);
+                        Intent serviceIntent = new Intent(this, AlarmService.class);
                         startService(serviceIntent);
 
                         pendingAction = PendingAction.ADD_SHABBAT_EVENTS;
                         if (hasLocationPermission() && hasCalendarPermission()) {
-                            shabbatManager.enqueueWorker();
+                            shabbatManager.scheduleIfNeeded();
                             return;
                         }
 
@@ -773,7 +774,7 @@ public class MainActivity extends MessageActivity {
                 // NOW continue the Shabbat flow
                 if (setCalendarPerms()) {
                     if (pendingAction == PendingAction.ADD_SHABBAT_EVENTS) {
-                        shabbatManager.enqueueWorker();
+                        shabbatManager.scheduleIfNeeded();
                     } else if (pendingAction == PendingAction.UPDATE_CALENDAR) {
                         updateCalendar();
                     }

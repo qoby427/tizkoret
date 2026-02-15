@@ -125,7 +125,6 @@ public class HebrewUtils {
     }
 
     public static long computeNextCandleLighting(Context context) {
-
         // 1. Load location
         SharedPreferences prefs = context.getSharedPreferences(UserSettings.PREFS, Context.MODE_PRIVATE);
 
@@ -153,7 +152,7 @@ public class HebrewUtils {
         Date candleMillis = zc.getCandleLighting();
 
         // 6. If candle-lighting already passed today, jump to next Friday
-        if (candleMillis.getTime() <= System.currentTimeMillis()) {
+        if (candleMillis.getTime() - 12 * 60_000 <= System.currentTimeMillis()) {
             cal.add(Calendar.DAY_OF_MONTH, 7);
             zc.setCalendar(cal);
             candleMillis = zc.getCandleLighting();

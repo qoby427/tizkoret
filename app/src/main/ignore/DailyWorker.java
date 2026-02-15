@@ -15,7 +15,7 @@ import java.util.Locale;
 public class DailyWorker extends Worker {
     private Context ctx;
     private SharedPreferences prefs;
-    private ShabbatSchedulerManager manager;
+    private EventManager manager;
     private final SimpleDateFormat DATE_ONLY = new SimpleDateFormat("yyyyMMdd", Locale.US);
 
     public DailyWorker(@NonNull Context context, @NonNull WorkerParameters workerParams) {
@@ -32,8 +32,8 @@ public class DailyWorker extends Worker {
         List<YahrzeitEntry> todaysYahrzeits = UserSettings.loadYahrzeitList(ctx);
 
         if (isFriday) {
-            manager = new ShabbatSchedulerManager(ctx);
-            manager.forceReschedule();
+            manager = new EventManager(ctx);
+            manager.scheduleIfNeeded();
         }
         else {
             String yz = "";
@@ -57,7 +57,7 @@ public class DailyWorker extends Worker {
                 UserSettings.log("ShabbatDailyWorker executed at " +
                         UserSettings.getLogTime(System.currentTimeMillis()) + " in Debug = " + UserSettings.isDebug());
                 //TODO: manager = new YahrzeitSchedulerManager(ctx);
-                manager.forceReschedule();
+                manager.scheduleIfNeeded();
             }
         }
 

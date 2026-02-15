@@ -48,6 +48,10 @@
             android:name=".ShabbatAlarmService"
             android:exported="false"
             android:foregroundServiceType="mediaPlayback" />
+        <service
+            android:name=".YahrzeitAlarmService"
+            android:exported="false"
+            android:foregroundServiceType="mediaPlayback" />
         <receiver
             android:name=".ShabbatAlarmReceiver"
             android:exported="false" />
@@ -55,12 +59,8 @@
             android:name=".YahrzeitAlarmReceiver"
             android:exported="false" />
         <receiver
-            android:name=".DailyAlarmReceiver"
-            android:exported="false">
-            <intent-filter>
-                <action android:name="DAILY_VERIFICATION" />
-            </intent-filter>
-        </receiver>
+            android:name=".StopAllReceiver"
+            android:exported="false"/>
 
         <receiver
             android:name=".BootReceiver"
@@ -70,11 +70,6 @@
             </intent-filter>
         </receiver>
 
-
-        <service
-            android:name=".ShabbatAlarmService"
-            android:exported="false"
-            android:foregroundServiceType="mediaPlayback" />
         <activity android:name=".AboutActivity" />
         <activity android:name=".SupportActivity" />
         <activity android:name=".CustomizeActivity" />

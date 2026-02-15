@@ -17,5 +17,5 @@
     <!-- Flame (simple white teardrop) -->
     <path
         android:fillColor="#FFFFFF"
-        android:pathData="M12,4 C10.5,6.5 11.5,8 12,9 C12.5,8 13.5,6.5 12,4 Z" />
+        android:pathData="M12,1 C7,7.5 10.5,10 12,12 C13.5,10 17,7.5 12,1 Z" />
 </vector>

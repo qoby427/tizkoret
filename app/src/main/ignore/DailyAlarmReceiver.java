@@ -9,13 +9,13 @@ public class DailyAlarmReceiver extends BroadcastReceiver {
     @Override
     public void onReceive(Context context, Intent intent) {
         Context appContext = context.getApplicationContext();
-        ShabbatSchedulerManager manager = new ShabbatSchedulerManager(appContext);
+        EventManager manager = new EventManager(appContext);
         // ---------------------------------------------------------
         // Delegate ALL logic to the unified worker engine
         // ---------------------------------------------------------
-        manager.enqueueImmediateWorker();
+        //manager.enqueueImmediateWorker();
 
         // ---------------------------------------------------------
-        manager.scheduleNextWakeup();
+        //manager.scheduleNextWakeup();
     }
 }

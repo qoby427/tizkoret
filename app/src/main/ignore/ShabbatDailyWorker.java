@@ -9,12 +9,12 @@ import androidx.work.WorkerParameters;
 
 public class ShabbatDailyWorker extends Worker {
     public final static String TAG = "TizcoretDailyWorker";
-    private ShabbatSchedulerManager manager;
+    private EventManager manager;
     private Context ctx;
     public ShabbatDailyWorker(@NonNull Context context,  @NonNull WorkerParameters params) {
         super(context, params);
         ctx = context.getApplicationContext();
-        manager = new ShabbatSchedulerManager(ctx);
+        manager = new EventManager(ctx);
     }
 
     @NonNull
@@ -31,8 +31,8 @@ public class ShabbatDailyWorker extends Worker {
         UserSettings.log("ShabbatDailyWorker executed at " +
             UserSettings.getLogTime(now) + " in Debug = " + UserSettings.isDebug());
 
-        boolean repaired = manager.scheduleIfNeeded();
-        UserSettings.log("ShabbatDailyWorker scheduleIfNeeded() result = " + repaired);
+        manager.scheduleIfNeeded();
+        UserSettings.log("ShabbatDailyWorker scheduleIfNeeded() finished");
 
         return Result.success();
     }

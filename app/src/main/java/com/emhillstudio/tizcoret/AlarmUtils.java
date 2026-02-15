@@ -1,5 +1,8 @@
 package com.emhillstudio.tizcoret;
 
+import static android.content.Context.MODE_PRIVATE;
+import static com.emhillstudio.tizcoret.AlarmReceiver.prefs;
+
 import android.annotation.SuppressLint;
 import android.app.AlarmManager;
 import android.app.PendingIntent;
@@ -7,93 +10,64 @@ import android.content.Context;
 import android.content.Intent;
 import android.content.SharedPreferences;
 
-import org.json.JSONException;
 import org.json.JSONObject;
+
+import java.util.Arrays;
 
 public class AlarmUtils {
 
-    public static final int REQ_3HR = 3001;
-    public static final int REQ_5MIN = 3002;
-
     // ------------------------------------------------------------
-    // PUBLIC API
+    // PUBLIC API — schedule/cancel BOTH alarms for this event
     // ------------------------------------------------------------
     @SuppressLint("ScheduleExactAlarm")
-    public static void scheduleNotification(Context context, boolean alarm, long triggerAtMillis) {
+    public static void scheduleEntry(Context context, EventManager.EventInfo info) {
         AlarmManager am = (AlarmManager) context.getSystemService(Context.ALARM_SERVICE);
-        if (am != null) {
-            UserSettings.log("AlarmUtils alarm=" + alarm +
-                " scheduleNotif time " + UserSettings.getLogTime(triggerAtMillis));
-            try {
-                PendingIntent pi = alarm ? get5MinutePendingIntent(context) : get3HourPendingIntent(context);
-                am.setExactAndAllowWhileIdle(
-                        AlarmManager.RTC_WAKEUP,
-                        triggerAtMillis,
-                        pi
-                );
-            } catch (JSONException ex) {
-                System.out.println("schedule3HourAlarm: " + ex);
-            }
+        if (am == null)
+            return;
+        for (EventManager.AlarmEntry  e: Arrays.asList(info.early, info.final5)) {
+            UserSettings.log("AlarmUtils::scheduleEntry " + e.action + " req="+e.requestCode+
+                    " at " + UserSettings.getLogTime(e.triggerAt));
+
+            SharedPreferences prefs = context.getSharedPreferences(UserSettings.PREFS, MODE_PRIVATE);
+            prefs.edit().putString(e.action, e.payloadJson.toString()).apply();
+
+            Intent intent = new Intent(context, info.receiverClass());
+            intent.setAction(e.action);
+
+            PendingIntent pi = PendingIntent.getBroadcast(
+                    context,
+                    e.requestCode,
+                    intent,
+                    PendingIntent.FLAG_UPDATE_CURRENT | PendingIntent.FLAG_IMMUTABLE
+            );
+
+            am.setExactAndAllowWhileIdle(
+                    AlarmManager.RTC_WAKEUP,
+                    e.triggerAt,
+                    pi
+            );
         }
     }
-    public static void cancelNotification(Context context, boolean alarm) {
+
+    public static void cancelEntry(Context context, EventManager.EventInfo info) {
         AlarmManager am = (AlarmManager) context.getSystemService(Context.ALARM_SERVICE);
-        try {
-            PendingIntent pi = alarm ? get5MinutePendingIntent(context) : get3HourPendingIntent(context);
-            if (am != null) {
+        if (am == null) return;
+        for (EventManager.AlarmEntry  e: Arrays.asList(info.early, info.final5)) {
+            Intent intent = new Intent(context, info.receiverClass());
+            intent.setAction(e.action);
+
+            PendingIntent pi = PendingIntent.getBroadcast(
+                    context,
+                    e.requestCode,
+                    intent,
+                    PendingIntent.FLAG_NO_CREATE | PendingIntent.FLAG_IMMUTABLE
+            );
+
+            if (pi != null) {
+                UserSettings.log("AlarmUtils cancel " + e.action);
                 am.cancel(pi);
+                pi.cancel();
             }
-        } catch (JSONException ex) {
-            System.out.println("cancel3HourAlarm: " + ex);
         }
-    }
-    // ------------------------------------------------------------
-    // INTERNAL HELPERS
-    // ------------------------------------------------------------
-
-    private static PendingIntent get3HourPendingIntent(Context context) throws JSONException {
-        SharedPreferences prefs = context.getSharedPreferences(UserSettings.PREFS, Context.MODE_PRIVATE);
-        String json = prefs.getString("payload", "{}");
-        JSONObject payload = new JSONObject(json.toString());
-        if (UserSettings.isDebug()) {
-            long candleTime = payload.getLong("next_candle_time");
-            UserSettings.log("AlarmUtils::get3HourPendingIntent candle time " + UserSettings.getLogTime(candleTime));
-        }
-        String target = payload.getString("event_target");
-
-        payload.put("event_type", "notification");
-        String newjson = payload.toString();
-        prefs.edit().putString("SHABBAT_3HR_NOTIFICATION", newjson).apply();
-
-        Intent intent = new Intent(context, ShabbatAlarmReceiver.class);
-        intent.setAction("SHABBAT_3HR_NOTIFICATION");
-
-        return PendingIntent.getBroadcast(
-                context,
-                REQ_3HR,
-                intent,
-                PendingIntent.FLAG_UPDATE_CURRENT | PendingIntent.FLAG_IMMUTABLE
-        );
-    }
-
-    private static PendingIntent get5MinutePendingIntent(Context context) throws JSONException {
-        SharedPreferences prefs = context.getSharedPreferences(UserSettings.PREFS, Context.MODE_PRIVATE);
-
-        String json = prefs.getString("payload", "{}");
-        JSONObject payload = new JSONObject(json.toString());
-
-        payload.put("event_type", "alarm");
-        String newjson = new String(payload.toString());
-        prefs.edit().putString("SHABBAT_5MIN_ALARM", newjson).apply();
-        Intent intent = new Intent(context, ShabbatAlarmReceiver.class);
-        intent.setAction("SHABBAT_5MIN_ALARM");
-
-        return PendingIntent.getBroadcast(
-                context,
-                REQ_5MIN,
-                intent,
-                PendingIntent.FLAG_UPDATE_CURRENT | PendingIntent.FLAG_IMMUTABLE
-        );
     }
 }
-

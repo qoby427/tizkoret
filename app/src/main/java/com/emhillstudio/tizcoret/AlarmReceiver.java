@@ -3,15 +3,13 @@ package com.emhillstudio.tizcoret;
 import static android.content.Context.MODE_PRIVATE;
 
 import android.app.AlarmManager;
-import android.app.NotificationChannel;
 import android.app.NotificationManager;
 import android.app.PendingIntent;
 import android.content.BroadcastReceiver;
 import android.content.Context;
 import android.content.Intent;
 import android.content.SharedPreferences;
-import android.media.AudioAttributes;
-import android.media.RingtoneManager;
+import android.net.Uri;
 import android.os.Build;
 
 import androidx.core.app.NotificationCompat;
@@ -30,16 +28,10 @@ public abstract class AlarmReceiver extends BroadcastReceiver {
         prefs = context.getSharedPreferences(UserSettings.PREFS, MODE_PRIVATE);
 
         try {
-            // ---------------------------------------------------------
-            // Extract and parse payload
-            // ---------------------------------------------------------
-            //String json = intent.getStringExtra("payload");
             String json = prefs.getString(intent.getAction(), null);
-
             if (json == null) return;
 
             JSONObject payload = new JSONObject(json);
-
             String eventType = payload.getString("event_type");
 
             // ---------------------------------------------------------
@@ -48,18 +40,17 @@ public abstract class AlarmReceiver extends BroadcastReceiver {
             if ("notification".equals(eventType)) {
                 showEarly(context, payload);
             }
+
             // ---------------------------------------------------------
             // Handle ALARM event (5 minutes before)
             // ---------------------------------------------------------
             else if ("alarm".equals(eventType)) {
                 int notifCode = ((Number) payload.get("notification_request_code")).intValue();
                 if (notifCode != 0) {
-                    long candleTime = payload.getLong("next_candle_time");
-                    UserSettings.log("AlarmReceiver::onReceive: 5‑min alarm, candle time " + UserSettings.getLogTime(candleTime));
-
                     // Cancel early notification
                     cancelNotification(context, notifCode);
 
+                    // Show final alarm
                     showFinal(context, payload);
                 }
             }
@@ -67,84 +58,75 @@ public abstract class AlarmReceiver extends BroadcastReceiver {
             UserSettings.log("AlarmReceiver::onReceive: exception " + e);
         }
     }
+
     protected void showEarly(Context context, JSONObject payload) throws JSONException {
         int requestCode = payload.getInt("request_code");
         long candleTime = payload.getLong("next_candle_time");
         long notifTime  = payload.getLong("3hour_notif_time");
+        String message  = payload.getString("message");
 
-        // Create channel if needed
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-            NotificationManager nm = (NotificationManager)
-                    context.getSystemService(Context.NOTIFICATION_SERVICE);
+        String eventType = payload.getString("event_type");
 
-            NotificationChannel early = new NotificationChannel(
-                    channel()+ "_early", //"shabbat_early",
-                    channel() + "_reminder",
-                    NotificationManager.IMPORTANCE_DEFAULT   // must be DEFAULT or higher for sound
-            );
-
-            early.setSound(
-                    RingtoneManager.getDefaultUri(RingtoneManager.TYPE_NOTIFICATION),
-                    new AudioAttributes.Builder()
-                            .setUsage(AudioAttributes.USAGE_NOTIFICATION)
-                            .build()
-            );
-
-            early.enableVibration(false);
-
-            nm.createNotificationChannel(early);
+        Uri soundUri;
+        String event;
+        if (requestCode == EventManager.SHABBAT) {
+            soundUri = UserSettings.getShabbatRingtone(context);
+            event = "shabbat";
+        } else {
+            soundUri = UserSettings.getYahrzeitRingtone(context);
+            event = "yahrzeit";
         }
 
-        UserSettings.log("AlarmReceiver::showEarly: notification time " + UserSettings.getLogTime(notifTime));
+        UserSettings.log("AlarmReceiver::showEarly: " + event + " notif time " + UserSettings.getLogTime(notifTime) +
+                ", candle time " + UserSettings.getLogTime(candleTime));
 
         NotificationCompat.Builder builder =
-                new NotificationCompat.Builder(context, "shabbat_early")
+                new NotificationCompat.Builder(context, channel())
                         .setSmallIcon(icon())
                         .setContentTitle("Candle Lighting Reminder")
-                        .setContentText("Shabbat candle lighting is at " + UserSettings.getTimestamp(candleTime))
+                        .setContentText(message)
                         .setPriority(NotificationCompat.PRIORITY_DEFAULT)
+                        .setSound(soundUri)
                         .setAutoCancel(true);
 
-        NotificationManager nm = (NotificationManager)
-                context.getSystemService(Context.NOTIFICATION_SERVICE);
+        NotificationManager nm =
+                (NotificationManager) context.getSystemService(Context.NOTIFICATION_SERVICE);
 
         nm.notify(requestCode, builder.build());
     }
+
     protected void showFinal(Context context, JSONObject payload) throws JSONException {
         int requestCode = payload.getInt("request_code");
         long candleTime = payload.getLong("next_candle_time");
-        long alarmTime = payload.getLong("5min_alarm_time");
+        String message  = payload.getString("message");
 
         // Cancel early notification
-        NotificationManager nm =
-                (NotificationManager) context.getSystemService(Context.NOTIFICATION_SERVICE);
+        NotificationManager nm = (NotificationManager) context.getSystemService(Context.NOTIFICATION_SERVICE);
         nm.cancel(requestCode);
 
-        JSONObject json = new JSONObject();
-        json.put("candle_time", UserSettings.getLogTime(candleTime));
-        json.put("event", "shabbat");
-        json.put("request_code", AlarmUtils.REQ_5MIN);
+        // Must be "shabbat" or "yahrzeit"
+        String eventType = payload.getString("event");
 
-        prefs.edit().putLong("last_processed_shabbat", candleTime).apply();
-
-        // Start alarm service
-        Intent svc = new Intent(context, ShabbatAlarmService.class);
+        // Start alarm service with sound
+        Intent svc = new Intent(context, requestCode == EventManager.SHABBAT ? ShabbatAlarmService.class : YahrzeitAlarmService.class);
         svc.setAction("ALARM");
-        svc.putExtra("payload", json.toString());
+        svc.putExtra("event", eventType);
+        svc.putExtra("message", message);
+        svc.putExtra("request_code", requestCode);
+        svc.putExtra("candle_time", UserSettings.getTimestamp(candleTime));
 
         try {
-            UserSettings.log("ShabbatAlarmReceiver::showFinal: alarm time " + UserSettings.getLogTime(alarmTime));
             if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
                 context.startForegroundService(svc);
+                UserSettings.log("AlarmReceiver::showFinal: " + eventType + " reqcode=" + requestCode);
             } else {
                 context.startService(svc);
             }
-        }
-        catch (Exception e)
-        {
-            UserSettings.log("ShabbatAlarmReceiver::showFinal: exception " + e);
+        } catch (Exception e) {
+            UserSettings.log("AlarmReceiver::showFinal: exception " + e);
         }
     }
+
     private void cancelNotification(Context context, int notifRequestCode) {
         AlarmManager am = (AlarmManager) context.getSystemService(Context.ALARM_SERVICE);
 

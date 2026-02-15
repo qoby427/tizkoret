@@ -10,17 +10,36 @@ public class App extends Application {
     @Override
     public void onCreate() {
         super.onCreate();
+        createNotificationChannels();
+    }
 
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-            NotificationChannel channel = new NotificationChannel(
-                    "friday_channel",
-                    "Friday Notifications",
-                    NotificationManager.IMPORTANCE_HIGH
-            );
-            channel.setDescription("Shabbat candle-lighting reminders");
+    private void createNotificationChannels() {
+        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.O)
+            return;
 
-            NotificationManager manager = getSystemService(NotificationManager.class);
-            manager.createNotificationChannel(channel);
-        }
+        NotificationManager manager = getSystemService(NotificationManager.class);
+
+        // Shabbat notifications (early + final notification)
+        NotificationChannel shabbat = new NotificationChannel(
+                "shabbat_channel",
+                "Shabbat Notifications",
+                NotificationManager.IMPORTANCE_DEFAULT
+        );
+        shabbat.setDescription("Shabbat candle-lighting reminders");
+        shabbat.enableVibration(false);
+
+        // Yahrzeit notifications (early + final notification)
+        NotificationChannel yahrzeit = new NotificationChannel(
+                "yahrzeit_channel",
+                "Yahrzeit Notifications",
+                NotificationManager.IMPORTANCE_DEFAULT
+        );
+        yahrzeit.setDescription("Yahrzeit reminders");
+        yahrzeit.enableVibration(false);
+
+        manager.createNotificationChannel(shabbat);
+        manager.createNotificationChannel(yahrzeit);
     }
 }
+
+

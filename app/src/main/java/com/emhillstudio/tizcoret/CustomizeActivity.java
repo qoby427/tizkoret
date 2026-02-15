@@ -72,17 +72,12 @@ public class CustomizeActivity extends AppCompatActivity {
         Uri uri = data.getParcelableExtra(RingtoneManager.EXTRA_RINGTONE_PICKED_URI);
         if (uri == null) return;
 
-        SharedPreferences.Editor editor = prefs.edit();
-
         if (requestCode == REQ_SHABBAT_RINGTONE) {
-            editor.putString("ringtone_shabbat", uri.toString());
             UserSettings.setShabbatRingtone(this, uri);
         } else if (requestCode == REQ_YAHRZEIT_RINGTONE) {
-            editor.putString("ringtone_yahrzeit", uri.toString());
             UserSettings.setYahrzeitRingtone(this, uri);
         }
 
-        editor.apply();
         updateLabels();
     }
 

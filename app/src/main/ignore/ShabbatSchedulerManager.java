@@ -64,8 +64,8 @@ public class ShabbatSchedulerManager {
                 UserSettings.getLogTime(threeHourTime) + " " +
                 UserSettings.getLogTime(fiveMinuteTime));
 
-        schedule3HourNotification(threeHourTime);
-        schedule5MinuteAlarm(fiveMinuteTime);
+        //schedule3HourNotification(threeHourTime);
+        //schedule5MinuteAlarm(fiveMinuteTime);
 
         prefs.edit()
                 .putLong(KEY_NEXT_3HR, threeHourTime)
@@ -74,7 +74,7 @@ public class ShabbatSchedulerManager {
                 .apply();
     }
 
-    /** Cancel all alarms (if user disables Shabbat) */
+    /** Cancel all alarms (if user disables Shabbat)
     public void cancelAll() {
         // 1. Cancel alarms (current architecture)
         AlarmUtils.cancelNotification(context, false);
@@ -89,6 +89,7 @@ public class ShabbatSchedulerManager {
         // 3. Stop daily alarm (new architecture)
         stopDailyAlarm();
     }
+     */
     // ------------------------------------------------------------
     // INTERNAL LOGIC
     // ------------------------------------------------------------
@@ -211,12 +212,15 @@ public class ShabbatSchedulerManager {
             return "{}";
         }
     }
+    /*
     private void schedule3HourNotification(long time) {
         AlarmUtils.scheduleNotification(context, false, time);
     }
     private void schedule5MinuteAlarm(long millis) {
         AlarmUtils.scheduleNotification(context, true, millis);
     }
+
+     */
     public void enqueueWorker() {
         scheduleNextWakeup();
     }
@@ -285,7 +289,7 @@ public class ShabbatSchedulerManager {
 
         if (UserSettings.isDebug()) {
             // Fire every 15 minutes in debug mode
-            c.add(Calendar.MINUTE, FIRST_TIME ? 1 : 15);
+            c.add(Calendar.MINUTE, 15);
             trigger = c.getTimeInMillis();
         }
         else {

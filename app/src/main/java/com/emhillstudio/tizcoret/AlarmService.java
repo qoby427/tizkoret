@@ -24,55 +24,34 @@ import org.json.JSONObject;
 public class AlarmService extends Service {
 
     private MediaPlayer mediaPlayer;
-    private String eventType;     // "shabbat" or "yahrzeit"
-    private String candleTime;    // only for shabbat
+    private int reqcode;
+    private String candleTime;
+    private String message;
 
     @Override
     public int onStartCommand(Intent intent, int flags, int startId) {
         SharedPreferences prefs = getSharedPreferences(UserSettings.PREFS, MODE_PRIVATE);
 
-        if (intent == null) {
+        if (intent == null || intent.getAction() == null) {
             // System restart, keep ringing
             return START_STICKY;
         }
 
-        // 1. STOP must be handled first
-        if ("STOP_ALARM".equals(intent.getAction())) {
-            stopAlarm();
-            return START_NOT_STICKY;
-        }
-
         // 2. Parse payload
-        String json = intent.getStringExtra("payload");
-
-        if(json == null)
-            return START_NOT_STICKY;
-
-        try {
-            JSONObject payload = new JSONObject(json);
-
-            eventType = payload.getString("event");
-            candleTime = payload.getString("candle_time");
-        } catch (JSONException ex) {
-            System.out.println("AlarmService::onStartCommand: " + ex);
-            return START_NOT_STICKY;
+        if("ALARM".equals(intent.getAction())) {
+            candleTime = intent.getStringExtra("candle_time");
+            message = intent.getStringExtra("message");
+            reqcode = intent.getIntExtra("request_code", -1);
         }
 
-        System.out.println("AlarmService::onStartCommand: candle time " + candleTime);
+        UserSettings.log("AlarmService::onStartCommand: reqcode="+reqcode+" candle time " + candleTime);
 
-        // 3. Prepare channel + foreground notification
-        createNotificationChannel();
-        startForeground(1, buildNotification());
-
-        // 4. Start alarm sound
-        startAlarmSound(getAlarmTone(eventType));
+        startForeground(reqcode, buildNotification());
+        startAlarmSound(getAlarmTone(reqcode));
 
         return START_STICKY;
     }
 
-    // -----------------------------
-    // STOP LOGIC
-    // -----------------------------
     private void stopAlarm() {
         try {
             if (mediaPlayer != null) {
@@ -84,34 +63,17 @@ public class AlarmService extends Service {
         mediaPlayer = null;
 
         stopForeground(true);
-        stopSelf();
     }
-
-    // -----------------------------
-    // CHANNEL
-    // -----------------------------
-    private void createNotificationChannel() {
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-            NotificationChannel channel =
-                    new NotificationChannel("alarm_channel", "Alarm Channel",
-                            NotificationManager.IMPORTANCE_HIGH);
-
-            channel.setSound(null, null);
-            channel.enableVibration(false);
-
-            NotificationManager manager = getSystemService(NotificationManager.class);
-            manager.createNotificationChannel(channel);
-        }
-    }
-
     // -----------------------------
     // RINGTONE SELECTION
     // -----------------------------
-    private Uri getAlarmTone(String event) {
+    private Uri getAlarmTone(int reqcode) {
         SharedPreferences prefs = getSharedPreferences(UserSettings.PREFS, MODE_PRIVATE);
-        String saved = prefs.getString("ringtone_" + event, null);
+        Uri saved = reqcode == EventManager.SHABBAT ?
+                UserSettings.getShabbatRingtone(this) :
+                UserSettings.getYahrzeitRingtone(this);
 
-        if (saved != null) return Uri.parse(saved);
+        if (saved != null) return saved;
 
         Uri uri = RingtoneManager.getActualDefaultRingtoneUri(this, RingtoneManager.TYPE_ALARM);
         if (uri != null) return uri;
@@ -126,29 +88,33 @@ public class AlarmService extends Service {
     // NOTIFICATION
     // -----------------------------
     private Notification buildNotification() {
-        Intent stopIntent = new Intent(this, getClass());
-        stopIntent.setAction("STOP_ALARM");
+        Intent stopIntent = new Intent(this, StopAllReceiver.class);
 
-        PendingIntent stopPendingIntent = PendingIntent.getService(
+        PendingIntent stopPendingIntent = PendingIntent.getBroadcast(
                 this,
                 0,
                 stopIntent,
                 PendingIntent.FLAG_UPDATE_CURRENT | PendingIntent.FLAG_IMMUTABLE
         );
 
-        String title = eventType.equals("yahrzeit")
-                ? "Yahrzeit Alarm"
-                : "Shabbat Alarm";
+        String channelId;
+        int icon;
+        String title;
+        if(reqcode == EventManager.SHABBAT) {
+            channelId = "shabbat_channel";
+            icon = R.drawable.ic_shabbat_candles;
+            title = "Shabbat Alarm";
+        }
+        else {
+            channelId = "yahrzeit_channel";
+            icon = R.drawable.ic_yahrzeit_candle;
+            title = "Yahrzeit Alarm";
+        }
 
-        String text = "Tap STOP to silence the alarm";
-
-        if ("shabbat".equals(eventType) && candleTime != null)
-            text = "Shabbat candle lighting at " + candleTime;
-
-        return new NotificationCompat.Builder(this, "alarm_channel")
+        return new NotificationCompat.Builder(this, channelId)
                 .setContentTitle(title)
-                .setContentText(text)
-                .setSmallIcon(R.drawable.ic_shabbat_candles)
+                .setContentText(message)
+                .setSmallIcon(icon)
                 .setOngoing(true)
                 .addAction(android.R.drawable.ic_media_pause, "STOP", stopPendingIntent)
                 .setPriority(NotificationCompat.PRIORITY_HIGH)
@@ -197,7 +163,7 @@ public class AlarmService extends Service {
     private void autoStopAfterOneMinute() {
         new Handler(Looper.getMainLooper()).postDelayed(() -> {
             if (mediaPlayer != null) {
-                stopAlarm();
+                stopSelf();
             }
         }, 60_000);
     }
@@ -209,6 +175,8 @@ public class AlarmService extends Service {
     public void onDestroy() {
         super.onDestroy();
         stopAlarm();
+
+        new EventManager(this).scheduleIfNeeded();
     }
 
     @Override

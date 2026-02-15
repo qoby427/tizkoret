@@ -16,7 +16,7 @@ import java.util.Map;
 public class YahrzeitAlarmReceiver extends AlarmReceiver {
     @Override
     protected String channel(){
-        return "yahrzeit";
+        return "yahrzeit_channel";
     }
     @Override
     protected int icon(){
