@@ -243,9 +243,13 @@ public class UserSettings {
         SimpleDateFormat sdf = new SimpleDateFormat("h:mm a", Locale.getDefault());
         return sdf.format(new Date(millis));
     }
-    public static String getDate(long millis) {
-        SimpleDateFormat sdf = new SimpleDateFormat("dd/mm/yyyy", Locale.getDefault());
-        return sdf.format(new Date(millis));
+    public static int[] getDate(long millis) {
+        SimpleDateFormat y = new SimpleDateFormat("yyyy", Locale.getDefault());
+        SimpleDateFormat d = new SimpleDateFormat("DDD", Locale.getDefault());
+
+        int year = Integer.parseInt(y.format(new Date(millis)));
+        int day = Integer.parseInt(d.format(new Date(millis)));
+        return new int[]{year, day};
     }
     public static String getLogTime(long millis) {
         SimpleDateFormat sdf = new SimpleDateFormat("MMM d h:mm a", Locale.getDefault());
@@ -255,6 +259,6 @@ public class UserSettings {
         Log.d("Tizcoret Debug", msg);
     }
     public static boolean isDebug() {
-        return false || BuildConfig.DEBUG;
+        return false && BuildConfig.DEBUG;
     }
 }

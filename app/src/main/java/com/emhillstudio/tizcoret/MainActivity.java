@@ -140,6 +140,8 @@ public class MainActivity extends MessageActivity {
 
             if (hasLocationPermission() && hasCalendarPermission()) {
                 updateCalendar();
+                if(UserSettings.isShabbatAlarmEnabled(this))
+                    shabbatManager.scheduleIfNeeded();
                 return;
             }
 
@@ -304,6 +306,8 @@ public class MainActivity extends MessageActivity {
                     shabbatManager.scheduleIfNeeded();
                 } else if (pendingAction == PendingAction.UPDATE_CALENDAR) {
                     updateCalendar();
+                    if(UserSettings.isShabbatAlarmEnabled(this))
+                        shabbatManager.scheduleIfNeeded();
                 }
             }
 
@@ -777,6 +781,8 @@ public class MainActivity extends MessageActivity {
                         shabbatManager.scheduleIfNeeded();
                     } else if (pendingAction == PendingAction.UPDATE_CALENDAR) {
                         updateCalendar();
+                        if(UserSettings.isShabbatAlarmEnabled(MainActivity.this))
+                            shabbatManager.scheduleIfNeeded();
                     }
                 }
             }

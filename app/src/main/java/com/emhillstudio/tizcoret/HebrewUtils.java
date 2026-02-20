@@ -160,7 +160,26 @@ public class HebrewUtils {
 
         return candleMillis.getTime();
     }
+    public static long computeYahrzeitCandleLighting(Context context, Date yz) {
+        // 1. Load location
+        SharedPreferences prefs = context.getSharedPreferences(UserSettings.PREFS, Context.MODE_PRIVATE);
 
+        double lat = UserSettings.getLatitude(context);
+        double lon = UserSettings.getLongitude(context);
+        double elev = 300;
+
+        Calendar cal = Calendar.getInstance();
+        cal.setTime(yz);
+        cal.set(Calendar.SECOND, 0);
+        cal.set(Calendar.MILLISECOND, 0);
+
+        ZmanimCalendar zc = new ZmanimCalendar();
+        zc.setGeoLocation(new GeoLocation("loc", lat, lon, elev, TimeZone.getDefault()));
+        zc.setCalendar(cal);
+
+        Date candleMillis = zc.getCandleLighting();
+        return candleMillis.getTime();
+    }
     public static long computeNextYahrzeit(Context context, Date diedDate) {
 
         // 1. Convert original date of death to Hebrew date

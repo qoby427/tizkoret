@@ -25,7 +25,7 @@ public class AlarmUtils {
         if (am == null)
             return;
         for (EventManager.AlarmEntry  e: Arrays.asList(info.early, info.final5)) {
-            UserSettings.log("AlarmUtils::scheduleEntry " + e.action + " req="+e.requestCode+
+            UserSettings.log("AlarmUtils::scheduleEntry " + e.action + " req code="+e.requestCode+
                     " at " + UserSettings.getLogTime(e.triggerAt));
 
             SharedPreferences prefs = context.getSharedPreferences(UserSettings.PREFS, MODE_PRIVATE);
@@ -64,9 +64,10 @@ public class AlarmUtils {
             );
 
             if (pi != null) {
-                UserSettings.log("AlarmUtils cancel " + e.action);
                 am.cancel(pi);
                 pi.cancel();
+
+                UserSettings.log("AlarmUtils::cancelEntry: " + e.action + " req code=" + e.requestCode);
             }
         }
     }
