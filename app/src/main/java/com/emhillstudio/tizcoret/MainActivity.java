@@ -74,7 +74,7 @@ public class MainActivity extends MessageActivity {
         ADD_SHABBAT_EVENTS,
     }
     private PendingAction pendingAction = PendingAction.NONE;
-    private EventManager shabbatManager;
+    private EventManager eventManager;
     @Override
     protected void onResume() {
         super.onResume();
@@ -141,7 +141,7 @@ public class MainActivity extends MessageActivity {
             if (hasLocationPermission() && hasCalendarPermission()) {
                 updateCalendar();
                 if(UserSettings.isShabbatAlarmEnabled(this))
-                    shabbatManager.scheduleIfNeeded();
+                    eventManager.scheduleIfNeeded();
                 return;
             }
 
@@ -211,7 +211,10 @@ public class MainActivity extends MessageActivity {
             }
         }
 
-        shabbatManager = new EventManager(this);
+        eventManager = new EventManager(this);
+
+        //if(UserSettings.isDebug())
+            UserSettings.clearEvents(this);
     }
     @Override
     protected void onActivityResult(int requestCode, int resultCode, Intent data) {
@@ -251,7 +254,7 @@ public class MainActivity extends MessageActivity {
 
                 Date candleLighting = zc.getCandleLighting();
                 String msg = entry.name.strip()+"'s Yahrzeit tomorrow. ";
-                if(insertCalendarEvent(candleLighting.getTime(), msg)) {
+                if(insertCalendarEvent(candleLighting, msg)) {
                     scheduleAlarm(candleLighting.getTime(), "yahrzeit",entry.diedDate);
                 }
             } catch (Exception e) {
@@ -303,11 +306,11 @@ public class MainActivity extends MessageActivity {
         if (requestCode == REQ_CALENDAR) {
             if (granted) {
                 if (pendingAction == PendingAction.ADD_SHABBAT_EVENTS) {
-                    shabbatManager.scheduleIfNeeded();
+                    eventManager.scheduleIfNeeded();
                 } else if (pendingAction == PendingAction.UPDATE_CALENDAR) {
                     updateCalendar();
                     if(UserSettings.isShabbatAlarmEnabled(this))
-                        shabbatManager.scheduleIfNeeded();
+                        eventManager.scheduleIfNeeded();
                 }
             }
 
@@ -343,7 +346,8 @@ public class MainActivity extends MessageActivity {
 
                         pendingAction = PendingAction.ADD_SHABBAT_EVENTS;
                         if (hasLocationPermission() && hasCalendarPermission()) {
-                            shabbatManager.scheduleIfNeeded();
+                            addNextFridayShabbatEvents();
+                            eventManager.scheduleIfNeeded();
                             return;
                         }
 
@@ -359,7 +363,7 @@ public class MainActivity extends MessageActivity {
                                 ShabbatAlarmReceiver.class,
                                 AlarmService.class
                         );
-                        shabbatManager.cancelAll();
+                        eventManager.cancelAll();
                     });
         }
     }
@@ -403,25 +407,16 @@ public class MainActivity extends MessageActivity {
         }
         zc.setCalendar(cal);
 
-        Date candleLighting = zc.getCandleLighting(); // your Date object
-        if (candleLighting == null) return;
+        Date candleLighting = zc.getCandleLighting();
 
-        String formattedTime = new SimpleDateFormat("h:mm a", Locale.getDefault()).format(candleLighting);
-
-        prefs.edit().putString("candle_lighting_time", formattedTime).apply();
-
-        long candleLightingMillis = candleLighting.getTime();
-
-        if(insertCalendarEvent(candleLightingMillis,"")) {
-            try {
-                scheduleAlarm(candleLightingMillis, "shabbat", null);
-            } catch (JSONException ex) {
-                System.out.println("MainActivity::addNextFridayShabbatEvents: " + ex);
-            }
+        UserSettings.log("MainActivity::addNextFridayShabbatEvents: adding shabbat " +
+            UserSettings.getLogTime(candleLighting.getTime()));
+        if(!insertCalendarEvent(candleLighting,"")) {
+            UserSettings.log("MainActivity::addNextFridayShabbatEvents: shabbat adding to calendar failed");
         }
     }
 
-    private boolean insertCalendarEvent(long candleLightingMillis, String header) {
+    private boolean insertCalendarEvent(Date candleLighting, String header) {
         long calendarId = getGoogleCalendarId();
         if (calendarId == -1)
             return false;
@@ -430,10 +425,11 @@ public class MainActivity extends MessageActivity {
 
         // Format time for title
         String formatted = new SimpleDateFormat("h:mm a", Locale.getDefault())
-                .format(new Date(candleLightingMillis));
+                .format(candleLighting);
 
         String title = header + "Candle Lighting – " + formatted;
 
+        long candleLightingMillis = candleLighting.getTime();
         if (eventAlreadyExists(calendarId, candleLightingMillis, title))
             return false;
 
@@ -453,7 +449,7 @@ public class MainActivity extends MessageActivity {
 
         long eventId = Long.parseLong(eventUri.getLastPathSegment());
 
-        // 2. Add your 18-minute reminder
+        // 2. Add your 5-minute reminder
         ContentValues reminder = new ContentValues();
         reminder.put(CalendarContract.Reminders.EVENT_ID, eventId);
         reminder.put(CalendarContract.Reminders.MINUTES, 5);
@@ -778,11 +774,11 @@ public class MainActivity extends MessageActivity {
                 // NOW continue the Shabbat flow
                 if (setCalendarPerms()) {
                     if (pendingAction == PendingAction.ADD_SHABBAT_EVENTS) {
-                        shabbatManager.scheduleIfNeeded();
+                        eventManager.scheduleIfNeeded();
                     } else if (pendingAction == PendingAction.UPDATE_CALENDAR) {
                         updateCalendar();
                         if(UserSettings.isShabbatAlarmEnabled(MainActivity.this))
-                            shabbatManager.scheduleIfNeeded();
+                            eventManager.scheduleIfNeeded();
                     }
                 }
             }

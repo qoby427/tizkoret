@@ -2,8 +2,17 @@ package com.emhillstudio.tizcoret;
 
 import static android.content.Context.MODE_PRIVATE;
 
+import android.annotation.SuppressLint;
 import android.content.Context;
 import android.content.SharedPreferences;
+import android.location.Location;
+import android.location.LocationListener;
+import android.location.LocationRequest;
+import android.os.Build;
+
+import com.google.android.gms.location.FusedLocationProviderClient;
+import com.google.android.gms.location.LocationServices;
+import com.google.android.gms.location.Priority;
 
 import org.json.JSONObject;
 
@@ -22,6 +31,13 @@ public class EventManager {
     public static final int SHABBAT = 3001;
     public static final int YAHRZEIT = 4001;
     private static SharedPreferences prefs;
+    public static SharedPreferences getPrefs() {
+        return prefs;
+    }
+    interface LocationListener {
+        void onLocationAvailable(Location loc);
+        void onLocationUnavailable();
+    }
 
     // ------------------------------------------------------------
     // INTERNAL METADATA
@@ -89,12 +105,38 @@ public class EventManager {
 
     public void scheduleIfNeeded() {
         UserSettings.log("EventManager::scheduleIfNeeded: Starting event planning ---------------------------------");
+        getCoarseLocationFromCellTower(ctx, new LocationListener() {
+            @Override
+            public void onLocationAvailable(Location loc) {
+                double oldLat = UserSettings.getLatitude(ctx);
+                double oldLng = UserSettings.getLongitude(ctx);
+                UserSettings.log("EventManager::scheduleIfNeeded - old location " + oldLat + ", " + oldLng);
+                UserSettings.log("EventManager::scheduleIfNeeded - new location " + loc.getLatitude() + ", " + loc.getLongitude());
+
+                float[] result = new float[1];
+                Location.distanceBetween(oldLat, oldLng, loc.getLatitude(), loc.getLongitude(), result);
+                if(result[0] > 1000) {
+                    UserSettings.setLatitude(ctx, loc.getLatitude());
+                    UserSettings.setLongitude(ctx, loc.getLongitude());
+                    UserSettings.log("EventManager::scheduleIfNeeded - Using new location " + loc.getLatitude() + ", " + loc.getLongitude());
+                }
+                else
+                    UserSettings.log("EventManager::scheduleIfNeeded - Using location " + oldLat + ", " + oldLng);
+                schedule();
+            }
+            @Override
+            public void onLocationUnavailable() {
+                UserSettings.log("EventManager::scheduleIfNeeded - Coarse location unavailable");
+                schedule();
+            }
+        });
+    }
+    private void schedule() {
         List<EventInfo> events = computeEvents();
         for (EventInfo e : events) {
             AlarmUtils.scheduleEntry(ctx, e);
         }
     }
-
     private EventInfo toEventInfo(YahrzeitEntry entry) {
         EventInfo info = new EventInfo();
         info.type = YAHRZEIT;
@@ -276,4 +318,29 @@ public class EventManager {
         } catch (Exception ex) {
         }
     }
+    @SuppressLint("MissingPermission")
+    public void getCoarseLocationFromCellTower(Context ctx, LocationListener listener) {
+        FusedLocationProviderClient fused =
+                LocationServices.getFusedLocationProviderClient(ctx);
+
+        // Request COARSE location only (cell tower + Wi-Fi)
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
+            LocationRequest request = new LocationRequest.Builder(
+                    Priority.PRIORITY_BALANCED_POWER_ACCURACY   // coarse accuracy
+                    // no interval, one-shot
+            ).build();
+        }
+
+        fused.getCurrentLocation(
+                Priority.PRIORITY_BALANCED_POWER_ACCURACY,
+                null
+        ).addOnSuccessListener(location -> {
+            if (location != null) {
+                listener.onLocationAvailable(location);
+            } else {
+                listener.onLocationUnavailable();
+            }
+        });
+    }
+
 }

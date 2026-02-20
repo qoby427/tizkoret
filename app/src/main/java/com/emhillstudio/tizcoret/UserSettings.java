@@ -62,19 +62,11 @@ public class UserSettings {
         return prefs(ctx).getBoolean(KEY_SHABBAT_ALARM, false);
     }
 
-    // -----------------------------
-    //  Next Alarm Time (NEW)
-    // -----------------------------
-    public static void setNextAlarmTime(Context ctx, long timeMillis) {
-        prefs(ctx).edit().putLong(KEY_NEXT_ALARM, timeMillis).apply();
-    }
-
-    public static long getNextAlarmTime(Context ctx) {
-        return prefs(ctx).getLong(KEY_NEXT_ALARM, -1);
-    }
-
-    public static void clearNextAlarmTime(Context ctx) {
-        prefs(ctx).edit().remove(KEY_NEXT_ALARM).apply();
+    public static void clearEvents(Context ctx) {
+        prefs(ctx).edit().putLong("processed_shabbat_time", 0).apply();
+        List<YahrzeitEntry> list = loadYahrzeitList(ctx);
+        for (YahrzeitEntry entry : list)
+            prefs(ctx).edit().putLong("processed_yahrzeit_" + entry.name, 0).apply();
     }
 
     // -----------------------------
