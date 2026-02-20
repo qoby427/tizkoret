@@ -213,7 +213,7 @@ public class MainActivity extends MessageActivity {
 
         eventManager = new EventManager(this);
 
-        //if(UserSettings.isDebug())
+        if(UserSettings.isDebug())
             UserSettings.clearEvents(this);
     }
     @Override
@@ -254,7 +254,7 @@ public class MainActivity extends MessageActivity {
 
                 Date candleLighting = zc.getCandleLighting();
                 String msg = entry.name.strip()+"'s Yahrzeit tomorrow. ";
-                if(insertCalendarEvent(candleLighting, msg)) {
+                if(insertCalendarEvent(candleLighting.getTime(), msg)) {
                     scheduleAlarm(candleLighting.getTime(), "yahrzeit",entry.diedDate);
                 }
             } catch (Exception e) {
@@ -367,14 +367,6 @@ public class MainActivity extends MessageActivity {
                     });
         }
     }
-
-    private LocalDate getNextFriday() {
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-            LocalDate today = LocalDate.now();
-            return today.with(TemporalAdjusters.next(DayOfWeek.FRIDAY));
-        }
-        return null;
-    }
     private ZmanimCalendar buildZmanimCalendar() {
         double lat = UserSettings.getLatitude(this);
         double lng = UserSettings.getLongitude(this);
@@ -391,32 +383,15 @@ public class MainActivity extends MessageActivity {
 
         return new ZmanimCalendar(geo);
     }
-
-
     private void addNextFridayShabbatEvents() {
-        LocalDate friday = getNextFriday();
-        if (friday == null)
-            return;
+        long candleLighting = HebrewUtils.computeNextCandleLighting(this);
 
-        ZmanimCalendar zc = buildZmanimCalendar();
-
-        Calendar cal = Calendar.getInstance();
-        cal.setTimeZone(TimeZone.getDefault());
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-            cal.set(friday.getYear(), friday.getMonthValue() - 1, friday.getDayOfMonth());
-        }
-        zc.setCalendar(cal);
-
-        Date candleLighting = zc.getCandleLighting();
-
-        UserSettings.log("MainActivity::addNextFridayShabbatEvents: adding shabbat " +
-            UserSettings.getLogTime(candleLighting.getTime()));
-        if(!insertCalendarEvent(candleLighting,"")) {
-            UserSettings.log("MainActivity::addNextFridayShabbatEvents: shabbat adding to calendar failed");
+        if(insertCalendarEvent(candleLighting,"")) {
+            UserSettings.log("MainActivity::addNextFridayShabbatEvents: adding shabbat " +
+                UserSettings.getLogTime(candleLighting));
         }
     }
-
-    private boolean insertCalendarEvent(Date candleLighting, String header) {
+    private boolean insertCalendarEvent(long candleLighting, String header) {
         long calendarId = getGoogleCalendarId();
         if (calendarId == -1)
             return false;
@@ -429,8 +404,7 @@ public class MainActivity extends MessageActivity {
 
         String title = header + "Candle Lighting – " + formatted;
 
-        long candleLightingMillis = candleLighting.getTime();
-        if (eventAlreadyExists(calendarId, candleLightingMillis, title))
+        if (eventAlreadyExists(calendarId, candleLighting, title))
             return false;
 
         // 1. Insert event into EVENTS table
@@ -440,8 +414,8 @@ public class MainActivity extends MessageActivity {
         event.put(CalendarContract.Events.CALENDAR_ID, calendarId);
         event.put(CalendarContract.Events.EVENT_TIMEZONE, timeZoneId);
         event.put(CalendarContract.Events.EVENT_END_TIMEZONE, timeZoneId);
-        event.put(CalendarContract.Events.DTSTART, candleLightingMillis);
-        event.put(CalendarContract.Events.DTEND, candleLightingMillis + 60 * 60 * 1000);
+        event.put(CalendarContract.Events.DTSTART, candleLighting);
+        event.put(CalendarContract.Events.DTEND, candleLighting + 60 * 60 * 1000);
 
         Uri eventUri = cr.insert(CalendarContract.Events.CONTENT_URI, event);
         if (eventUri == null)
@@ -459,7 +433,6 @@ public class MainActivity extends MessageActivity {
 
         return true;
     }
-
     private long getGoogleCalendarId() {
         ContentResolver cr = getContentResolver();
 
