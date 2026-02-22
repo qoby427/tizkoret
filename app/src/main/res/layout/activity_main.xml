@@ -40,7 +40,7 @@
         <TextView
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
-            android:text="Reminders for Shabbat and Yahrzeit"
+            android:text="Reminders for Shabbat and Yahrzeits"
             android:textSize="14sp"
             android:gravity="center"
             android:layout_marginTop="6dp"/>
@@ -75,7 +75,7 @@
                 android:id="@+id/shabbatTitle"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
-                android:text="Shabbat"
+                android:text="Shabbat and Yahrzeits"
                 android:textSize="20sp"
                 android:textStyle="bold"
                 android:paddingBottom="0dp"/>
@@ -91,7 +91,7 @@
                     android:layout_width="0dp"
                     android:layout_height="wrap_content"
                     android:layout_weight="1"
-                    android:text="Shabbat candle lighting times alarm is turned off"
+                    android:text="Candle lighting times notification and alarm is currently turned off"
                     android:textSize="16sp"/>
 
                 <com.google.android.material.button.MaterialButton
@@ -123,7 +123,7 @@
                 android:id="@+id/yahrzeitTitle"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
-                android:text="Yahrzeit"
+                android:text="Yahrzeit List"
                 android:textSize="20sp"
                 android:textStyle="bold"
                 android:paddingTop="12dp"
@@ -197,10 +197,11 @@
                     android:layout_width="0dp"
                     android:layout_height="wrap_content"
                     android:layout_weight="1"
-                    android:paddingEnd="12dp"
                     android:textSize="12sp"
                     android:layout_marginStart="0dp"
                     android:layout_marginEnd="8dp"
+                    android:paddingHorizontal="0dp"
+                    android:gravity="center"
                     android:text="Add Yahrzeit"/>
 
                 <com.google.android.material.button.MaterialButton
@@ -211,6 +212,8 @@
                     android:textSize="12sp"
                     android:layout_marginStart="8dp"
                     android:layout_marginEnd="8dp"
+                    android:paddingHorizontal="0dp"
+                    android:gravity="center"
                     android:text="Stop Service"/>
 
                 <com.google.android.material.button.MaterialButton
@@ -222,6 +225,7 @@
                     android:textSize="12sp"
                     android:layout_marginStart="8dp"
                     android:paddingHorizontal="0dp"
+                    android:gravity="center"
                     android:text="Update Calendar"/>
             </LinearLayout>
 

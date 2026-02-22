@@ -52,6 +52,9 @@ public class AlarmUtils {
     public static void cancelEntry(Context context, EventManager.EventInfo info) {
         AlarmManager am = (AlarmManager) context.getSystemService(Context.ALARM_SERVICE);
         if (am == null) return;
+
+        UserSettings.log("AlarmUtils::cancelEntry req codes " + info.early.requestCode + " " + info.final5.requestCode);
+
         for (EventManager.AlarmEntry  e: Arrays.asList(info.early, info.final5)) {
             Intent intent = new Intent(context, info.receiverClass());
             intent.setAction(e.action);
@@ -66,8 +69,6 @@ public class AlarmUtils {
             if (pi != null) {
                 am.cancel(pi);
                 pi.cancel();
-
-                UserSettings.log("AlarmUtils::cancelEntry: " + e.action + " req code=" + e.requestCode);
             }
         }
     }

@@ -102,7 +102,6 @@ public class EventManager {
     // ------------------------------------------------------------
     // PUBLIC API
     // ------------------------------------------------------------
-
     public void scheduleIfNeeded() {
         UserSettings.log("EventManager::scheduleIfNeeded: Starting event planning ---------------------------------");
         getCoarseLocationFromCellTower(ctx, new LocationListener() {
@@ -156,11 +155,11 @@ public class EventManager {
         info.type = SHABBAT;
 
         info.early = new AlarmEntry();
-        info.early.requestCode = getEarlyReqCode(SHABBAT, "shabbat");
+        info.early.requestCode = getEarlyReqCode(SHABBAT, "Shabbat");
         info.early.action = "shabbat_notification";
 
         info.final5 = new AlarmEntry();
-        info.final5.requestCode = getFinalReqCode(SHABBAT, "shabbat");
+        info.final5.requestCode = getFinalReqCode(SHABBAT, "Shabbat");
         info.final5.action = "shabbat_alarm";
 
         return info;
@@ -169,7 +168,9 @@ public class EventManager {
         // Cancel Shabbat
         AlarmUtils.cancelEntry(ctx, toEventInfo());
 
-        // Cancel Yahrzeit alarms
+        cancelAllYahrzeitEvents(ctx);
+    }
+    public void cancelAllYahrzeitEvents(Context ctx) {
         List<YahrzeitEntry> list = UserSettings.loadYahrzeitList(ctx);
         for (YahrzeitEntry entry : list) {
             AlarmUtils.cancelEntry(ctx, toEventInfo(entry));
@@ -242,15 +243,15 @@ public class EventManager {
     // GENERIC EVENT BUILDER (uses metadata map)
     // ------------------------------------------------------------
     private int hashName(String name) {
-        return Math.abs(name.trim().toLowerCase().hashCode() % 1000);
+        return Math.abs(name.trim().toLowerCase().hashCode() % 10000);
     }
 
     private int getEarlyReqCode(int type, String name) {
-        return type + hashName("early"+name);
+        return type + hashName("early" + name.split(" ")[0]);
     }
 
     private int getFinalReqCode(int type, String name) {
-        return type + hashName("final"+name);
+        return type + hashName("final" + name.split(" ")[0]);
     }
 
     private EventInfo buildEvent(int type, long eventTime, String name) {
@@ -276,9 +277,10 @@ public class EventManager {
 
         // Payload
         buildPayloadJson(e, type == SHABBAT ? buildShabbatMessage(eventTime) : name + "’s yahrzeit is tomorrow");
-        String msg = type == SHABBAT ? "shabbat" : "yahrzeit for "+name;
+        String msg = type == SHABBAT ? "Shabbat" : "yahrzeit for "+name;
         UserSettings.log("EventManager::buildEvent " + msg + ": notif at " + UserSettings.getLogTime(e.early.triggerAt) +
             " alarm at " + UserSettings.getLogTime(e.final5.triggerAt));
+        UserSettings.log("EventManager::buildEvent req codes " + e.early.requestCode + " " + e.final5.requestCode);
 
         return e;
     }
@@ -298,7 +300,7 @@ public class EventManager {
     private void buildPayloadJson(EventInfo e, String message) {
         try {
             JSONObject obj = new JSONObject();
-            obj.put("event", e.type == SHABBAT ? "shabbat" : "yahrzeit");
+            obj.put("event", e.type == SHABBAT ? "Shabbat" : "Yahrzeit");
             obj.put("request_code", e.early.requestCode);
             obj.put("next_candle_time", e.eventTime);
             obj.put("3hour_notif_time", e.early.triggerAt);
@@ -307,7 +309,7 @@ public class EventManager {
             e.early.payloadJson =  obj.toString();
 
             obj = new JSONObject();
-            obj.put("event", e.type == SHABBAT ? "shabbat" : "yahrzeit");
+            obj.put("event", e.type == SHABBAT ? "Shabbat" : "Yahrzeit");
             obj.put("request_code", e.final5.requestCode);
             obj.put("notification_request_code", e.early.requestCode);
             obj.put("next_candle_time", e.eventTime);

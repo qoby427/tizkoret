@@ -45,14 +45,7 @@ public abstract class AlarmReceiver extends BroadcastReceiver {
             // Handle ALARM event (5 minutes before)
             // ---------------------------------------------------------
             else if ("alarm".equals(eventType)) {
-                int notifCode = ((Number) payload.get("notification_request_code")).intValue();
-                if (notifCode != 0) {
-                    // Cancel early notification
-                    cancelNotification(context, notifCode);
-
-                    // Show final alarm
-                    showFinal(context, payload);
-                }
+                showFinal(context, payload);
             }
         } catch (Exception e) {
             UserSettings.log("AlarmReceiver::onReceive: exception " + e);
@@ -64,20 +57,12 @@ public abstract class AlarmReceiver extends BroadcastReceiver {
         long candleTime = payload.getLong("next_candle_time");
         long notifTime  = payload.getLong("3hour_notif_time");
         String message  = payload.getString("message");
+        String event    = payload.getString("event");
 
-        String eventType = payload.getString("event_type");
+        Uri soundUri = event.equals("Shabbat") ? UserSettings.getShabbatRingtone(context) : UserSettings.getYahrzeitRingtone(context);
 
-        Uri soundUri;
-        String event;
-        if (requestCode == EventManager.SHABBAT) {
-            soundUri = UserSettings.getShabbatRingtone(context);
-            event = "shabbat";
-        } else {
-            soundUri = UserSettings.getYahrzeitRingtone(context);
-            event = "yahrzeit";
-        }
-
-        UserSettings.log("AlarmReceiver::showEarly: " + event + " notif time " + UserSettings.getLogTime(notifTime) +
+        UserSettings.log("AlarmReceiver::showEarly: " + event + " req=" + requestCode +
+                " notif time " + UserSettings.getLogTime(notifTime) +
                 ", candle time " + UserSettings.getLogTime(candleTime));
 
         NotificationCompat.Builder builder =
@@ -97,50 +82,34 @@ public abstract class AlarmReceiver extends BroadcastReceiver {
 
     protected void showFinal(Context context, JSONObject payload) throws JSONException {
         int requestCode = payload.getInt("request_code");
+        int notifCode   = payload.getInt("notification_request_code");
         long candleTime = payload.getLong("next_candle_time");
         String message  = payload.getString("message");
 
         // Cancel early notification
         NotificationManager nm = (NotificationManager) context.getSystemService(Context.NOTIFICATION_SERVICE);
-        nm.cancel(requestCode);
+        nm.cancel(notifCode);
 
-        // Must be "shabbat" or "yahrzeit"
-        String eventType = payload.getString("event");
+        // Must be "Shabbat" or "Yahrzeit"
+        String event = payload.getString("event");
 
         // Start alarm service with sound
-        Intent svc = new Intent(context, requestCode == EventManager.SHABBAT ? ShabbatAlarmService.class : YahrzeitAlarmService.class);
+        Intent svc = new Intent(context, event.equals("Shabbat") ? ShabbatAlarmService.class : YahrzeitAlarmService.class);
         svc.setAction("ALARM");
-        svc.putExtra("event", eventType);
+        svc.putExtra("event", event);
         svc.putExtra("message", message);
         svc.putExtra("request_code", requestCode);
         svc.putExtra("candle_time", UserSettings.getTimestamp(candleTime));
 
         try {
             if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+                UserSettings.log("AlarmReceiver::showFinal: " + event + " reqcode=" + requestCode);
                 context.startForegroundService(svc);
-                UserSettings.log("AlarmReceiver::showFinal: " + eventType + " reqcode=" + requestCode);
             } else {
                 context.startService(svc);
             }
         } catch (Exception e) {
             UserSettings.log("AlarmReceiver::showFinal: exception " + e);
-        }
-    }
-
-    private void cancelNotification(Context context, int notifRequestCode) {
-        AlarmManager am = (AlarmManager) context.getSystemService(Context.ALARM_SERVICE);
-
-        Intent intent = new Intent(context, getClass());
-        PendingIntent pi = PendingIntent.getBroadcast(
-                context,
-                notifRequestCode,
-                intent,
-                PendingIntent.FLAG_NO_CREATE | PendingIntent.FLAG_IMMUTABLE
-        );
-
-        if (pi != null) {
-            am.cancel(pi);
-            pi.cancel();
         }
     }
 }

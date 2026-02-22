@@ -5,6 +5,7 @@ import android.app.NotificationChannel;
 import android.app.NotificationManager;
 import android.app.PendingIntent;
 import android.app.Service;
+import android.content.Context;
 import android.content.Intent;
 import android.content.SharedPreferences;
 import android.media.AudioManager;
@@ -24,8 +25,7 @@ import org.json.JSONObject;
 public class AlarmService extends Service {
 
     private MediaPlayer mediaPlayer;
-    private int reqcode;
-    private String candleTime;
+    private String  event;
     private String message;
 
     @Override
@@ -39,16 +39,17 @@ public class AlarmService extends Service {
 
         // 2. Parse payload
         if("ALARM".equals(intent.getAction())) {
-            candleTime = intent.getStringExtra("candle_time");
             message = intent.getStringExtra("message");
-            reqcode = intent.getIntExtra("request_code", -1);
+            event = intent.getStringExtra("event");
+
+            String candleTime = intent.getStringExtra("candle_time");
+            int reqcode = intent.getIntExtra("request_code", 1);
+
+            UserSettings.log("AlarmService::onStartCommand: event=" + event + " reqcode=" + reqcode + " candle time " + candleTime);
+
+            startForeground(reqcode, buildNotification());
+            startAlarmSound(getAlarmTone(event));
         }
-
-        UserSettings.log("AlarmService::onStartCommand: reqcode="+reqcode+" candle time " + candleTime);
-
-        startForeground(reqcode, buildNotification());
-        startAlarmSound(getAlarmTone(reqcode));
-
         return START_STICKY;
     }
 
@@ -67,9 +68,9 @@ public class AlarmService extends Service {
     // -----------------------------
     // RINGTONE SELECTION
     // -----------------------------
-    private Uri getAlarmTone(int reqcode) {
+    private Uri getAlarmTone(String event) {
         SharedPreferences prefs = getSharedPreferences(UserSettings.PREFS, MODE_PRIVATE);
-        Uri saved = reqcode == EventManager.SHABBAT ?
+        Uri saved = event.equals("Shabbat") ?
                 UserSettings.getShabbatRingtone(this) :
                 UserSettings.getYahrzeitRingtone(this);
 
@@ -99,20 +100,17 @@ public class AlarmService extends Service {
 
         String channelId;
         int icon;
-        String title;
-        if(reqcode == EventManager.SHABBAT) {
+        if(event.equals("Shabbat")) {
             channelId = "shabbat_channel";
             icon = R.drawable.ic_shabbat_candles;
-            title = "Shabbat Alarm";
         }
         else {
             channelId = "yahrzeit_channel";
             icon = R.drawable.ic_yahrzeit_candle;
-            title = "Yahrzeit Alarm";
         }
 
         return new NotificationCompat.Builder(this, channelId)
-                .setContentTitle(title)
+                .setContentTitle(event + " Alarm")
                 .setContentText(message)
                 .setSmallIcon(icon)
                 .setOngoing(true)

@@ -236,7 +236,11 @@ public class YahrzeitAdapter extends RecyclerView.Adapter<RecyclerView.ViewHolde
     }
 
     public List<YahrzeitEntry> getEntries() {
-        return entries;
+        List<YahrzeitEntry> actual = new ArrayList<>();
+        for (YahrzeitEntry entry : entries)
+            if(!entry.name.isEmpty() && !entry.diedDate.toString().isEmpty() && entry.diedDate != null)
+                actual.add(entry);
+        return actual;
     }
 
     public void setEntries(List<YahrzeitEntry> newEntries) {
