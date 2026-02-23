@@ -64,6 +64,7 @@ public class AlarmService extends Service {
         mediaPlayer = null;
 
         stopForeground(true);
+        UserSettings.log("AlarmService::stopAlarm: foreground stopped =====================================================");
     }
     // -----------------------------
     // RINGTONE SELECTION
