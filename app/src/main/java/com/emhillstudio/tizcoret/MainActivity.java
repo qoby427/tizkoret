@@ -101,6 +101,7 @@ public class MainActivity extends MessageActivity {
         //  Shabbat toggle
         // -----------------------------
         boolean enabled = UserSettings.isShabbatAlarmEnabled(this);
+        updateShabbatUI(enabled);
 
         shabbatToggle.setOnClickListener(v -> {
             maybeAskToAddShabbat();
@@ -301,12 +302,13 @@ public class MainActivity extends MessageActivity {
     private void updateShabbatUI(boolean enabled) {
         String msg = "Candle lighting notifications and alarms\nare currently turned ";
         if (enabled) {
-            shabbatStatus.setText(msg + "on");
+            shabbatStatus.setText(msg + "ON");
             shabbatToggle.setText("Turn Off");
         } else {
-            shabbatStatus.setText(msg + "off");
+            shabbatStatus.setText(msg + "OFF");
             shabbatToggle.setText("Turn On");
         }
+        UserSettings.setShabbatAlarmEnabled(this, enabled);
     }
 
     private void maybeAskToAddShabbat() {
