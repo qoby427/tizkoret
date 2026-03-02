@@ -1,5 +1,7 @@
 package com.emhillstudio.tizcoret;
 
+import static android.content.Context.MODE_PRIVATE;
+
 import android.content.Context;
 import android.content.SharedPreferences;
 import android.media.RingtoneManager;
@@ -12,25 +14,22 @@ import com.google.gson.reflect.TypeToken;
 
 import org.json.JSONArray;
 import org.json.JSONException;
-import org.json.JSONObject;
 
 import java.lang.reflect.Type;
 import java.text.SimpleDateFormat;
 import java.util.ArrayList;
 import java.util.Date;
-import java.util.Iterator;
 import java.util.List;
 import java.util.Locale;
 
 public class UserSettings {
+    private static SharedPreferences logprefs;
 
     public static final String PREFS = "prefs";
-    private static final String KEY_SHABBAT_JSON = "last_shabbat_json";
     private static final String KEY_LAT = "latitude";
     private static final String KEY_LNG = "longitude";
     private static final String KEY_SHABBAT_ALARM = "shabbat_alarm_enabled";
     private static final String KEY_YAHRZEIT_LIST = "yahrzeit_list";
-    private static final String KEY_NEXT_ALARM = "next_alarm_time";
 
     // -----------------------------
     //  Coordinates
@@ -84,23 +83,6 @@ public class UserSettings {
     public static void saveYahrzeitList(Context ctx, JSONArray arr) {
         prefs(ctx).edit().putString(KEY_YAHRZEIT_LIST, arr.toString()).apply();
     }
-
-    public static void addYahrzeit(Context ctx, String name, String civilDate, String hebrewDate) {
-        JSONArray arr = getYahrzeitList(ctx);
-
-        JSONObject obj = new JSONObject();
-        try {
-            obj.put("name", name);
-            obj.put("civilDate", civilDate);
-            obj.put("hebrewDate", hebrewDate);
-
-            arr.put(obj);
-        } catch (JSONException ignored) {
-        }
-
-        saveYahrzeitList(ctx, arr);
-    }
-
     public static void saveYahrzeitList(Context context, List<YahrzeitEntry> list) {
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.N) {
             list.removeIf(e ->
@@ -144,58 +126,6 @@ public class UserSettings {
 
         saveYahrzeitList(ctx, newArr);
     }
-
-    public static void setLastShabbatJson(Context context, String json) {
-        prefs(context)
-                .edit()
-                .putString(KEY_SHABBAT_JSON, json)
-                .apply();
-    }
-
-    public static String getLastShabbatJson(Context context) {
-        return prefs(context).getString(KEY_SHABBAT_JSON, null);
-    }
-
-    public static void saveYahrzeitJson(Context context, String json) throws JSONException {
-        // Load existing list
-        List<String> list = loadYahrzeitJsonList(context);
-        if (list == null)
-            list = new ArrayList<>();
-
-        // Parse new payload
-        JSONObject newPayload = new JSONObject(json);
-        int newId = newPayload.getInt("entry_id");
-
-        // Remove any existing entry with the same entry_id
-        Iterator<String> it = list.iterator();
-        while (it.hasNext()) {
-            JSONObject p = new JSONObject(it.next());
-            int id = p.getInt("entry_id");
-            if (id == newId) {
-                it.remove();
-                break;
-            }
-        }
-
-        // Add the new JSON
-        list.add(json);
-
-        // Save back
-        prefs(context).edit().putString("yahrzeit_json_list", new Gson().toJson(list)).apply();
-    }
-
-    public static List<String> loadYahrzeitJsonList(Context context) {
-        String json = prefs(context).getString("yahrzeit_json_list", null);
-        if (json == null) return new ArrayList<>();
-
-        Type type = new TypeToken<List<String>>() {}.getType();
-        return new Gson().fromJson(json, type);
-    }
-
-    public static void clearAllYahrzeitJson(Context context) {
-        prefs(context).edit().remove(UserSettings.KEY_YAHRZEIT_LIST).apply();
-    }
-
     public static Uri getYahrzeitRingtone(Context context) {
         String uriString = prefs(context).getString("yahrzeit_ringtone", null);
 
@@ -228,20 +158,12 @@ public class UserSettings {
     //  Internal
     // -----------------------------
     private static SharedPreferences prefs(Context ctx) {
-        return ctx.getSharedPreferences(PREFS, Context.MODE_PRIVATE);
+        return ctx.getSharedPreferences(PREFS, MODE_PRIVATE);
     }
 
     public static String getTimestamp(long millis) {
         SimpleDateFormat sdf = new SimpleDateFormat("h:mm a", Locale.getDefault());
         return sdf.format(new Date(millis));
-    }
-    public static int[] getDate(long millis) {
-        SimpleDateFormat y = new SimpleDateFormat("yyyy", Locale.getDefault());
-        SimpleDateFormat d = new SimpleDateFormat("DDD", Locale.getDefault());
-
-        int year = Integer.parseInt(y.format(new Date(millis)));
-        int day = Integer.parseInt(d.format(new Date(millis)));
-        return new int[]{year, day};
     }
     public static String getLogTime(long millis) {
         SimpleDateFormat sdf = new SimpleDateFormat("MMM d h:mm a", Locale.getDefault());
@@ -249,8 +171,17 @@ public class UserSettings {
     }
     public static void log(String msg) {
         Log.d("Tizcoret Debug", msg);
+        if(!isDebug()) {
+            String log = logprefs.getString("log", "");
+            logprefs.edit().putString("log", log + "\n" + msg).apply();
+        }
     }
+
     public static boolean isDebug() {
         return false && BuildConfig.DEBUG;
+    }
+
+    public static void setPrefs(SharedPreferences p) {
+        logprefs = p;
     }
 }

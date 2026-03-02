@@ -55,8 +55,13 @@
         android:layout_width="0dp"
         android:layout_height="wrap_content"
         android:layout_weight="1"
-        android:textSize="14sp"
         android:maxLines="1"
-        android:padding="0dp" />
+        android:padding="0dp"
+
+        android:autoSizeTextType="uniform"
+        android:autoSizeMinTextSize="10sp"
+        android:autoSizeMaxTextSize="14sp"
+        android:autoSizeStepGranularity="1sp"/>
+
 
 </LinearLayout>

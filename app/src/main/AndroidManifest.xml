@@ -38,7 +38,6 @@
             </intent-filter>
         </activity>
 
-        <!-- Alarm Receiver -->
         <service
             android:name=".ShabbatAlarmService"
             android:exported="false"
@@ -47,18 +46,22 @@
             android:name=".YahrzeitAlarmService"
             android:exported="false"
             android:foregroundServiceType="mediaPlayback" />
+
+        <receiver
+            android:name=".MasterReceiver"
+            android:exported="true" />
         <receiver
             android:name=".ShabbatAlarmReceiver"
-            android:exported="false" />
+            android:exported="true" />
         <receiver
             android:name=".YahrzeitAlarmReceiver"
-            android:exported="false" />
+            android:exported="true" />
         <receiver
             android:name=".StopAllReceiver"
-            android:exported="false"/>
+            android:exported="true"/>
         <receiver
             android:name=".BootReceiver"
-            android:exported="false">
+            android:exported="true">
             <intent-filter>
                 <action android:name="android.intent.action.BOOT_COMPLETED"/>
             </intent-filter>

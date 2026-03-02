@@ -12,7 +12,7 @@ import android.widget.TextView;
 import androidx.annotation.Nullable;
 import androidx.appcompat.app.AppCompatActivity;
 
-public class CustomizeActivity extends AppCompatActivity {
+public class CustomizeActivity extends MessageActivity {
 
     private static final int REQ_SHABBAT_RINGTONE = 2001;
     private static final int REQ_YAHRZEIT_RINGTONE = 2002;

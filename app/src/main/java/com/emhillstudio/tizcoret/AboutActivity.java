@@ -11,7 +11,7 @@ import com.google.android.material.appbar.MaterialToolbar;
 
 import java.util.Objects;
 
-public class AboutActivity extends AppCompatActivity {
+public class AboutActivity extends MessageActivity {
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {

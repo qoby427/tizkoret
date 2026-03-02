@@ -1,5 +1,7 @@
 package com.emhillstudio.tizcoret;
 
+import android.content.Context;
+import android.content.res.Configuration;
 import android.graphics.Color;
 import android.graphics.drawable.ColorDrawable;
 import android.graphics.drawable.GradientDrawable;
@@ -13,6 +15,14 @@ import androidx.appcompat.app.AlertDialog;
 import androidx.appcompat.app.AppCompatActivity;
 
 public class MessageActivity extends AppCompatActivity {
+    @Override
+    protected void attachBaseContext(Context newBase) {
+        Configuration override = new Configuration(newBase.getResources().getConfiguration());
+        override.fontScale = 1.15f; // ignore system font size
+        Context context = newBase.createConfigurationContext(override);
+        super.attachBaseContext(context);
+    }
+
     public AlertDialog showMessage(String message, boolean success) {
         View view = getLayoutInflater().inflate(R.layout.dialog_message, null);
         AlertDialog dialog = new AlertDialog.Builder(this)

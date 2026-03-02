@@ -23,7 +23,7 @@ public class ShabbatHelper {
         long candleLighting = HebrewUtils.computeNextCandleLighting(ctx);
 
         if(insertCalendarEvent(candleLighting,"")) {
-            UserSettings.log("MainActivity::addNextFridayShabbatEvents: adding shabbat " +
+            UserSettings.log("ShabbatHelper::addNextFridayShabbatEvents: adding shabbat " +
                 UserSettings.getLogTime(candleLighting));
         }
     }
@@ -64,7 +64,7 @@ public class ShabbatHelper {
         reminder.put(CalendarContract.Reminders.MINUTES, 5);
         reminder.put(CalendarContract.Reminders.METHOD, CalendarContract.Reminders.METHOD_ALERT);
 
-        cr.insert(CalendarContract.Reminders.CONTENT_URI, reminder);
+        //cr.insert(CalendarContract.Reminders.CONTENT_URI, reminder);
 
         return true;
     }

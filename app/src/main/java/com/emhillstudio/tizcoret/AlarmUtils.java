@@ -1,7 +1,6 @@
 package com.emhillstudio.tizcoret;
 
 import static android.content.Context.MODE_PRIVATE;
-import static com.emhillstudio.tizcoret.AlarmReceiver.prefs;
 
 import android.annotation.SuppressLint;
 import android.app.AlarmManager;
@@ -10,15 +9,51 @@ import android.content.Context;
 import android.content.Intent;
 import android.content.SharedPreferences;
 
-import org.json.JSONObject;
+import com.google.gson.Gson;
 
 import java.util.Arrays;
+import java.util.Calendar;
 
 public class AlarmUtils {
-
     // ------------------------------------------------------------
     // PUBLIC API — schedule/cancel BOTH alarms for this event
     // ------------------------------------------------------------
+    @SuppressLint("ScheduleExactAlarm")
+    public static void scheduleMasterEvent(Context context, EventManager.EventInfo info) {
+        AlarmManager am = (AlarmManager) context.getSystemService(Context.ALARM_SERVICE);
+        if (am == null)
+            return;
+
+        long trigger = one_am(info.eventTime);
+        int reqcode = EventManager.getMasterReqCode(info);
+
+        String json = new Gson().toJson(info);
+
+        SharedPreferences prefs = context.getSharedPreferences(UserSettings.PREFS, MODE_PRIVATE);
+        prefs.edit().putString("master"+reqcode, json).apply();
+
+        // Build intent
+        Intent intent = new Intent(context, MasterReceiver.class);
+        intent.setAction("master"+reqcode);
+
+        PendingIntent pi = PendingIntent.getBroadcast(
+                context,
+                reqcode,
+                intent,
+                PendingIntent.FLAG_UPDATE_CURRENT | PendingIntent.FLAG_IMMUTABLE
+        );
+
+        // Schedule master alarm
+        am.setExactAndAllowWhileIdle(
+                AlarmManager.RTC_WAKEUP,
+                trigger,
+                pi
+        );
+
+        UserSettings.log("AlarmUtils::scheduleMasterEvent for " + info.receiverClass().getSimpleName() +
+            " reqcode=" + reqcode + " for " + UserSettings.getLogTime(info.eventTime) + " at " + UserSettings.getLogTime(trigger));
+    }
+
     @SuppressLint("ScheduleExactAlarm")
     public static void scheduleEntry(Context context, EventManager.EventInfo info) {
         AlarmManager am = (AlarmManager) context.getSystemService(Context.ALARM_SERVICE);
@@ -27,7 +62,6 @@ public class AlarmUtils {
         for (EventManager.AlarmEntry  e: Arrays.asList(info.early, info.final5)) {
             UserSettings.log("AlarmUtils::scheduleEntry " + e.action + " req code="+e.requestCode+
                     " at " + UserSettings.getLogTime(e.triggerAt));
-
             SharedPreferences prefs = context.getSharedPreferences(UserSettings.PREFS, MODE_PRIVATE);
             prefs.edit().putString(e.action, e.payloadJson.toString()).apply();
 
@@ -71,5 +105,42 @@ public class AlarmUtils {
                 pi.cancel();
             }
         }
+    }
+    public static void cancelMaster(Context context, EventManager.EventInfo info) {
+        AlarmManager am = (AlarmManager) context.getSystemService(Context.ALARM_SERVICE);
+        if (am == null) return;
+
+        int reqcode = EventManager.getMasterReqCode(info);
+
+        UserSettings.log("AlarmUtils::cancel master event reqcode=" + reqcode);
+
+        Intent intent = new Intent(context, MasterReceiver.class);
+        intent.setAction("master"+reqcode);
+
+        PendingIntent pi = PendingIntent.getBroadcast(
+                context,
+                reqcode,
+                intent,
+                PendingIntent.FLAG_NO_CREATE | PendingIntent.FLAG_IMMUTABLE
+        );
+
+        if (pi != null) {
+            am.cancel(pi);
+            pi.cancel();
+        }
+    }
+    private static long one_am(long event) {
+        if(UserSettings.isDebug()) {
+            return event - 13 * 60_000L;
+        }
+        // Compute 1:00 AM local time on the event date
+        Calendar cal = Calendar.getInstance();
+        cal.setTimeInMillis(event);
+        cal.set(Calendar.HOUR_OF_DAY, 1);
+        cal.set(Calendar.MINUTE, 0);
+        cal.set(Calendar.SECOND, 0);
+        cal.set(Calendar.MILLISECOND, 0);
+
+        return cal.getTimeInMillis();
     }
 }

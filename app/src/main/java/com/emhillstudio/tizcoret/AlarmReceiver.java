@@ -32,6 +32,8 @@ public abstract class AlarmReceiver extends BroadcastReceiver {
             if (json == null) return;
 
             JSONObject payload = new JSONObject(json);
+            prefs.edit().remove(intent.getAction()).apply();
+
             String eventType = payload.getString("event_type");
 
             // ---------------------------------------------------------

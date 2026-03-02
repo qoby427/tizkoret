@@ -16,43 +16,30 @@ import android.Manifest;
 import android.annotation.SuppressLint;
 import android.app.AlarmManager;
 import android.app.PendingIntent;
-import android.content.ContentResolver;
-import android.content.ContentValues;
 import android.content.Context;
 import android.content.Intent;
 import android.content.SharedPreferences;
 import android.content.pm.PackageManager;
-import android.database.Cursor;
 import android.graphics.Color;
 import android.media.RingtoneManager;
 import android.net.Uri;
 import android.os.Build;
 import android.os.Bundle;
-import android.provider.CalendarContract;
+import android.util.Log;
 import android.view.View;
 import android.widget.TextView;
 import com.google.android.material.button.MaterialButton;
 
 import com.kosherjava.zmanim.ZmanimCalendar;
-import com.kosherjava.zmanim.hebrewcalendar.HebrewDateFormatter;
 import com.kosherjava.zmanim.util.GeoLocation;
-import com.kosherjava.zmanim.hebrewcalendar.JewishCalendar;
 
 import org.json.JSONException;
 import org.json.JSONObject;
 
-import java.text.SimpleDateFormat;
-import java.time.DayOfWeek;
-import java.time.Instant;
-import java.time.LocalDate;
-import java.time.ZoneId;
-import java.time.ZonedDateTime;
-import java.time.temporal.TemporalAdjusters;
 import java.util.ArrayList;
 import java.util.Calendar;
 import java.util.Date;
 import java.util.List;
-import java.util.Locale;
 import java.util.TimeZone;
 
 @SuppressLint("MissingPermission")
@@ -90,6 +77,8 @@ public class MainActivity extends MessageActivity {
 
         prefs = getSharedPreferences(UserSettings.PREFS, MODE_PRIVATE);
         prefs.edit().putLong("debug_last_candle", 0).apply();
+
+        UserSettings.setPrefs(prefs);
 
         // -----------------------------
         //  UI references
@@ -129,7 +118,7 @@ public class MainActivity extends MessageActivity {
         });
         findViewById(R.id.cancelYahrzeitButton).setVisibility(INVISIBLE);
         findViewById(R.id.cancelYahrzeitButton).setOnClickListener(v -> {
-            eventManager.cancelAllYahrzeitEvents(this);
+            eventManager.cancelAllYahrzeitEvents();
         });
 
         if (!prefs.contains("date_format")) {
@@ -217,6 +206,10 @@ public class MainActivity extends MessageActivity {
 
         if(UserSettings.isDebug())
             UserSettings.clearEvents(this);
+
+        String log = prefs.getString("log", "");
+        Log.d("Tizcoret Debug", log);
+        prefs.edit().putString("log", "").apply();
     }
     @Override
     protected void onActivityResult(int requestCode, int resultCode, Intent data) {
@@ -300,7 +293,7 @@ public class MainActivity extends MessageActivity {
     //  Shabbat calendar insertion
     // -----------------------------
     private void updateShabbatUI(boolean enabled) {
-        String msg = "Candle lighting notifications and alarms\nare currently turned ";
+        String msg = "Candle lighting notifications and\nalarms are currently turned ";
         if (enabled) {
             shabbatStatus.setText(msg + "ON");
             shabbatToggle.setText("Turn Off");

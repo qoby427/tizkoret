@@ -13,6 +13,7 @@ import android.os.Build;
 import com.google.android.gms.location.FusedLocationProviderClient;
 import com.google.android.gms.location.LocationServices;
 import com.google.android.gms.location.Priority;
+import com.google.gson.Gson;
 
 import org.json.JSONObject;
 
@@ -30,6 +31,8 @@ public class EventManager {
 
     public static final int SHABBAT = 3001;
     public static final int YAHRZEIT = 4001;
+    public static final int MASTER = 5001;
+
     private static SharedPreferences prefs;
     public static SharedPreferences getPrefs() {
         return prefs;
@@ -103,7 +106,20 @@ public class EventManager {
     // PUBLIC API
     // ------------------------------------------------------------
     public void scheduleIfNeeded() {
-        UserSettings.log("EventManager::scheduleIfNeeded: Starting event planning ---------------------------------");
+        UserSettings.log("EventManager::scheduleIfNeeded: Starting master planning ---------------------------------");
+        schedule();
+    }
+    public void scheduleIfNeeded(String json) {
+        if (json == null) {
+            UserSettings.log("EventManager::scheduleIfNeeded: null json received");
+            return;
+        }
+
+        EventManager.EventInfo e = new Gson().fromJson(json, EventManager.EventInfo.class);
+
+        UserSettings.log("EventManager::scheduleIfNeeded: Starting " +
+            e.receiverClass().getSimpleName() + " ---------------------------------");
+
         getCoarseLocationFromCellTower(ctx, new LocationListener() {
             @Override
             public void onLocationAvailable(Location loc) {
@@ -121,20 +137,24 @@ public class EventManager {
                 }
                 else
                     UserSettings.log("EventManager::scheduleIfNeeded - Using location " + oldLat + ", " + oldLng);
-                schedule();
+                schedule(e);
             }
             @Override
             public void onLocationUnavailable() {
                 UserSettings.log("EventManager::scheduleIfNeeded - Coarse location unavailable");
-                schedule();
+                schedule(e);
             }
         });
     }
     private void schedule() {
         List<EventInfo> events = computeEvents();
         for (EventInfo e : events) {
-            AlarmUtils.scheduleEntry(ctx, e);
+            AlarmUtils.scheduleMasterEvent(ctx, e);
+            //if(UserSettings.isDebug()) break;
         }
+    }
+    private void schedule(EventInfo e) {
+        AlarmUtils.scheduleEntry(ctx, e);
     }
     private EventInfo toEventInfo(YahrzeitEntry entry) {
         EventInfo info = new EventInfo();
@@ -166,14 +186,18 @@ public class EventManager {
     }
     public void cancelAll() {
         // Cancel Shabbat
-        AlarmUtils.cancelEntry(ctx, toEventInfo());
+        EventInfo info = toEventInfo();
+        AlarmUtils.cancelMaster(ctx, info);
+        AlarmUtils.cancelEntry(ctx, info);
 
-        cancelAllYahrzeitEvents(ctx);
+        cancelAllYahrzeitEvents();
     }
-    public void cancelAllYahrzeitEvents(Context ctx) {
+    public void cancelAllYahrzeitEvents() {
         List<YahrzeitEntry> list = UserSettings.loadYahrzeitList(ctx);
         for (YahrzeitEntry entry : list) {
-            AlarmUtils.cancelEntry(ctx, toEventInfo(entry));
+            EventInfo info = toEventInfo(entry);
+            AlarmUtils.cancelMaster(ctx, info);
+            AlarmUtils.cancelEntry(ctx, info);
         }
     }
 
@@ -242,10 +266,12 @@ public class EventManager {
     // ------------------------------------------------------------
     // GENERIC EVENT BUILDER (uses metadata map)
     // ------------------------------------------------------------
-    private int hashName(String name) {
+    private static int hashName(String name) {
         return Math.abs(name.trim().toLowerCase().hashCode() % 10000);
     }
-
+    public static int getMasterReqCode(EventInfo e) {
+        return MASTER + hashName("master" + e.early.requestCode + e.final5.requestCode);
+    }
     private int getEarlyReqCode(int type, String name) {
         return type + hashName("early" + name.split(" ")[0]);
     }
@@ -265,13 +291,13 @@ public class EventManager {
 
         // Early
         e.early = new AlarmEntry();
-        e.early.triggerAt = eventTime - (UserSettings.isDebug() ? 13 * 60_000L : 3 * 3600_000L);
+        e.early.triggerAt = eventTime - (UserSettings.isDebug() ? 12 * 60_000L : 3 * 3600_000L);
         e.early.action = meta.earlyAction;
         e.early.requestCode = getEarlyReqCode(type, name);
 
         // Final
         e.final5 = new AlarmEntry();
-        e.final5.triggerAt = eventTime - (UserSettings.isDebug() ? 11 * 60_000L : 5 * 60_000L);
+        e.final5.triggerAt = eventTime - (UserSettings.isDebug() ? 10 * 60_000L : 5 * 60_000L);
         e.final5.action = meta.finalAction;
         e.final5.requestCode = getFinalReqCode(type, name);
 
