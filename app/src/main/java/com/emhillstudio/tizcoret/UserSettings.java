@@ -132,6 +132,10 @@ public class UserSettings {
         if (uriString != null && !uriString.trim().isEmpty()) {
             return Uri.parse(uriString);
         }
+
+        Uri uri = Uri.parse("android.resource://" + context.getPackageName() + "/" + R.raw.schumann_fantasy);
+        if(uri != null)
+            return uri;
         // Fallback to system default alarm sound
         return RingtoneManager.getDefaultUri(RingtoneManager.TYPE_ALARM);
     }
@@ -146,6 +150,10 @@ public class UserSettings {
         if (uriString != null && !uriString.trim().isEmpty()) {
             return Uri.parse(uriString);
         }
+
+        Uri uri = Uri.parse("android.resource://" + context.getPackageName() + "/" + R.raw.lecha_dodi);
+        if(uri != null)
+            return uri;
         // Fallback to system default alarm sound
         return RingtoneManager.getDefaultUri(RingtoneManager.TYPE_ALARM);
     }

@@ -69,7 +69,6 @@ public class AlarmService extends Service {
                 UserSettings.getYahrzeitRingtone(this);
 
         if (saved != null) return saved;
-
         Uri uri = RingtoneManager.getActualDefaultRingtoneUri(this, RingtoneManager.TYPE_ALARM);
         if (uri != null) return uri;
 

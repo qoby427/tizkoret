@@ -7,6 +7,8 @@ import android.content.Context;
 import android.content.Intent;
 import android.content.SharedPreferences;
 
+import androidx.core.content.ContextCompat;
+
 public class MasterReceiver extends BroadcastReceiver {
 
     @Override
@@ -16,7 +18,11 @@ public class MasterReceiver extends BroadcastReceiver {
         try {
             String json = prefs.getString(intent.getAction(), null);
 
-            new EventManager(ctx).scheduleIfNeeded(json);
+            Intent svc = new Intent(ctx, LocationService.class);
+            svc.putExtra("event_info", json);
+            ContextCompat.startForegroundService(ctx, svc);
+
+            //new EventManager(ctx).scheduleIfNeeded(json);
             prefs.edit().remove(intent.getAction()).apply();
         } catch (Exception e) {
             System.out.println("MasterReceiver::onReceive: " + e);

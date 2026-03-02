@@ -120,7 +120,7 @@ public class EventManager {
         UserSettings.log("EventManager::scheduleIfNeeded: Starting " +
             e.receiverClass().getSimpleName() + " ---------------------------------");
 
-        getCoarseLocationFromCellTower(ctx, new LocationListener() {
+        getCoarseLocationSmart(ctx, new LocationListener() {
             @Override
             public void onLocationAvailable(Location loc) {
                 double oldLat = UserSettings.getLatitude(ctx);
@@ -146,7 +146,7 @@ public class EventManager {
             }
         });
     }
-    private void schedule() {
+    public void schedule() {
         List<EventInfo> events = computeEvents();
         for (EventInfo e : events) {
             AlarmUtils.scheduleMasterEvent(ctx, e);
@@ -370,5 +370,28 @@ public class EventManager {
             }
         });
     }
+    @SuppressLint("MissingPermission")
+    public void getCoarseLocationSmart(Context ctx, LocationListener listener) {
+        FusedLocationProviderClient fused =
+                LocationServices.getFusedLocationProviderClient(ctx);
 
+        // Try foreground-only API first (works only when app is active)
+        fused.getCurrentLocation(
+                Priority.PRIORITY_BALANCED_POWER_ACCURACY,
+                null
+        ).addOnSuccessListener(loc -> {
+            if (loc != null) {
+                listener.onLocationAvailable(loc);
+            } else {
+                // Fallback for receivers / background
+                fused.getLastLocation().addOnSuccessListener(last -> {
+                    if (last != null) {
+                        listener.onLocationAvailable(last);
+                    } else {
+                        listener.onLocationUnavailable();
+                    }
+                });
+            }
+        });
+    }
 }
