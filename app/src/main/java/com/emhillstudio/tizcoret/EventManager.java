@@ -2,13 +2,20 @@ package com.emhillstudio.tizcoret;
 
 import static android.content.Context.MODE_PRIVATE;
 
+import static androidx.core.content.ContextCompat.startActivity;
+
 import android.annotation.SuppressLint;
+import android.content.ContentUris;
+import android.content.ContentValues;
 import android.content.Context;
+import android.content.Intent;
 import android.content.SharedPreferences;
 import android.location.Location;
 import android.location.LocationListener;
 import android.location.LocationRequest;
+import android.net.Uri;
 import android.os.Build;
+import android.provider.CalendarContract;
 
 import com.google.android.gms.location.FusedLocationProviderClient;
 import com.google.android.gms.location.LocationServices;
@@ -80,14 +87,21 @@ public class EventManager {
     }
 
     public static class EventInfo {
-        private int type;
+        public int type;
         public long eventTime;
+        public long eventId;
+        public String name;
         public AlarmEntry early;
         public AlarmEntry final5;
         public Class<?> receiverClass() {
             return type == SHABBAT
                     ? ShabbatAlarmReceiver.class
                     : YahrzeitAlarmReceiver.class;
+        }
+        public String message() {
+            return type == SHABBAT
+                    ? ""
+                    : name.strip()+"'s Yahrzeit tomorrow. ";
         }
     }
 
@@ -106,7 +120,8 @@ public class EventManager {
     // PUBLIC API
     // ------------------------------------------------------------
     public void scheduleIfNeeded() {
-        UserSettings.log("EventManager::scheduleIfNeeded: Starting master planning ---------------------------------");
+        UserSettings.log("");
+        UserSettings.log("EventManager::scheduleIfNeeded: Starting master planning +++++++++++++++++++++++++++++++++");
         schedule();
     }
     public void scheduleIfNeeded(String json) {
@@ -149,8 +164,14 @@ public class EventManager {
     public void schedule() {
         List<EventInfo> events = computeEvents();
         for (EventInfo e : events) {
+            if(!UserSettings.isDebug()) {
+                long eventId = new ShabbatHelper(ctx).insertCalendarEvent(e);
+                if (eventId != 0) {
+                    UserSettings.log("EventManager::schedule: added " + e.receiverClass().getSimpleName() +
+                            " at " + UserSettings.getLogTime(e.eventTime));
+                }
+            }
             AlarmUtils.scheduleMasterEvent(ctx, e);
-            //if(UserSettings.isDebug()) break;
         }
     }
     private void schedule(EventInfo e) {
@@ -159,6 +180,7 @@ public class EventManager {
     private EventInfo toEventInfo(YahrzeitEntry entry) {
         EventInfo info = new EventInfo();
         info.type = YAHRZEIT;
+        info.name = entry.name;
 
         info.early = new AlarmEntry();
         info.early.requestCode = getEarlyReqCode(YAHRZEIT, entry.name);
@@ -173,6 +195,7 @@ public class EventManager {
     private EventInfo toEventInfo() {
         EventInfo info = new EventInfo();
         info.type = SHABBAT;
+        info.name = "";
 
         info.early = new AlarmEntry();
         info.early.requestCode = getEarlyReqCode(SHABBAT, "Shabbat");
@@ -185,12 +208,13 @@ public class EventManager {
         return info;
     }
     public void cancelAll() {
-        // Cancel Shabbat
+        cancelShabbatEvents();
+        cancelAllYahrzeitEvents();
+    }
+    public void cancelShabbatEvents() {
         EventInfo info = toEventInfo();
         AlarmUtils.cancelMaster(ctx, info);
         AlarmUtils.cancelEntry(ctx, info);
-
-        cancelAllYahrzeitEvents();
     }
     public void cancelAllYahrzeitEvents() {
         List<YahrzeitEntry> list = UserSettings.loadYahrzeitList(ctx);
@@ -209,25 +233,14 @@ public class EventManager {
     private List<EventInfo> computeEvents() {
         List<EventInfo> list = new ArrayList<>();
 
-        long candleTime;
-        if(UserSettings.isDebug()) {
-            long last = prefs.getLong("debug_last_candle", 0);
+        long candleTime = new ShabbatHelper(ctx).computeNextCandleLighting();
 
-            if (last == 0) {
-                candleTime = System.currentTimeMillis() + 15 * 60_000;
-            } else {
-                candleTime = last + 15 * 60_000;
-            }
-            prefs.edit().putLong("debug_last_candle", candleTime).apply();
-        }
-        else
-            candleTime = HebrewUtils.computeNextCandleLighting(ctx);
-
-        UserSettings.log("EventManager::computeEvents: next candle time "+UserSettings.getLogTime(candleTime));
+        UserSettings.log("EventManager::computeEvents: next candle time " + UserSettings.getLogTime(candleTime));
 
         // SHABBAT
         long processed_shabbat = prefs.getLong("processed_shabbat_time", 0);
-        UserSettings.log("EventManager::computeEvents: processed candle time "+UserSettings.getLogTime(processed_shabbat));
+        if(processed_shabbat > 0)
+            UserSettings.log("EventManager::computeEvents: processed candle time " + UserSettings.getLogTime(processed_shabbat));
 
         if (UserSettings.isDebug() || processed_shabbat < candleTime) {
             prefs.edit().putLong("processed_shabbat_time", candleTime).apply();
@@ -284,6 +297,7 @@ public class EventManager {
         EventInfo e = new EventInfo();
         e.type = type;
         e.eventTime = eventTime;
+        e.name = name;
 
         EventMeta meta = META.get(e.receiverClass());
         if(meta == null)
@@ -345,30 +359,6 @@ public class EventManager {
             e.final5.payloadJson =  obj.toString();
         } catch (Exception ex) {
         }
-    }
-    @SuppressLint("MissingPermission")
-    public void getCoarseLocationFromCellTower(Context ctx, LocationListener listener) {
-        FusedLocationProviderClient fused =
-                LocationServices.getFusedLocationProviderClient(ctx);
-
-        // Request COARSE location only (cell tower + Wi-Fi)
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
-            LocationRequest request = new LocationRequest.Builder(
-                    Priority.PRIORITY_BALANCED_POWER_ACCURACY   // coarse accuracy
-                    // no interval, one-shot
-            ).build();
-        }
-
-        fused.getCurrentLocation(
-                Priority.PRIORITY_BALANCED_POWER_ACCURACY,
-                null
-        ).addOnSuccessListener(location -> {
-            if (location != null) {
-                listener.onLocationAvailable(location);
-            } else {
-                listener.onLocationUnavailable();
-            }
-        });
     }
     @SuppressLint("MissingPermission")
     public void getCoarseLocationSmart(Context ctx, LocationListener listener) {

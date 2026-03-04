@@ -25,9 +25,13 @@ import android.media.RingtoneManager;
 import android.net.Uri;
 import android.os.Build;
 import android.os.Bundle;
-import android.util.Log;
+import javax.mail.Session;
 import android.view.View;
 import android.widget.TextView;
+
+import com.google.android.gms.location.FusedLocationProviderClient;
+import com.google.android.gms.location.LocationServices;
+import com.google.android.gms.location.Priority;
 import com.google.android.material.button.MaterialButton;
 
 import com.kosherjava.zmanim.ZmanimCalendar;
@@ -36,11 +40,18 @@ import com.kosherjava.zmanim.util.GeoLocation;
 import org.json.JSONException;
 import org.json.JSONObject;
 
+import javax.mail.PasswordAuthentication;
 import java.util.ArrayList;
 import java.util.Calendar;
 import java.util.Date;
 import java.util.List;
+import java.util.Properties;
 import java.util.TimeZone;
+
+import javax.mail.Transport;
+import javax.mail.internet.InternetAddress;
+import javax.mail.internet.MimeMessage;
+import javax.mail.Message;
 
 @SuppressLint("MissingPermission")
 public class MainActivity extends MessageActivity {
@@ -204,12 +215,20 @@ public class MainActivity extends MessageActivity {
 
         eventManager = new EventManager(this);
 
-        if(UserSettings.isDebug())
+        //if(UserSettings.isDebug())
             UserSettings.clearEvents(this);
 
-        String log = prefs.getString("log", "");
-        Log.d("Tizcoret Debug", log);
-        prefs.edit().putString("log", "").apply();
+        if(UserSettings.isDebug()) {
+            String loc = "";
+            for(String line: prefs.getString("log", "").split("\n")) {
+                if(line.contains("location") || line.contains("AlarmUtils::cancel"))
+                    loc += line + "\n";
+            }
+            if(!loc.isEmpty()) {
+                sendSms(loc);
+                prefs.edit().remove("log").apply();
+            }
+        }
     }
     @Override
     protected void onActivityResult(int requestCode, int resultCode, Intent data) {
@@ -315,7 +334,7 @@ public class MainActivity extends MessageActivity {
 
                         pendingAction = PendingAction.ADD_SHABBAT_EVENTS;
                         if (hasLocationPermission() && hasCalendarPermission()) {
-                            new ShabbatHelper(this).addNextFridayShabbatEvents();
+                            //new ShabbatHelper(this).addNextFridayShabbatEvents();
                             eventManager.scheduleIfNeeded();
                             return;
                         }
@@ -469,5 +488,49 @@ public class MainActivity extends MessageActivity {
                 System.out.println("getLocationNow: location unavailable");
             }
         });
+    }
+    private void sendEmail(String body) {
+        new Thread(() -> {
+            try {
+                Properties props = new Properties();
+                props.put("mail.smtp.auth", "true");
+                props.put("mail.smtp.starttls.enable", "true");
+                props.put("mail.smtp.host", "smtp.gmail.com");
+                props.put("mail.smtp.port", "587");
+
+                Session session = Session.getInstance(props,
+                        new javax.mail.Authenticator() {
+                            @Override
+                            protected javax.mail.PasswordAuthentication getPasswordAuthentication() {
+                                return new PasswordAuthentication(
+                                        "qoby427@gmail.com",
+                                        "yanikt53"
+                                );
+                            }
+                        });
+
+                javax.mail.Message message = new MimeMessage(session);
+                message.setFrom(new InternetAddress("qoby427@gmail.com"));
+                message.setRecipients(
+                        Message.RecipientType.TO,
+                        InternetAddress.parse("ytokar@yahoo.com")
+                );
+                message.setSubject("Tizcoret Log");
+                message.setText(body);
+
+                Transport.send(message);
+
+            } catch (Exception e) {
+                UserSettings.log("Send mail failed: " + e);
+            }
+        }).start();
+    }
+    @SuppressLint("MissingPermission")
+    private void sendSms(String body) {
+        Uri uri = Uri.parse("smsto:" + Uri.encode("9176873108"));
+        Intent intent = new Intent(Intent.ACTION_SENDTO, uri);
+        intent.putExtra("sms_body", body);
+        intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
+        startActivity(intent);
     }
 }

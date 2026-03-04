@@ -172,6 +172,7 @@ public class HebrewUtils {
         cal.setTime(yz);
         cal.set(Calendar.SECOND, 0);
         cal.set(Calendar.MILLISECOND, 0);
+        cal.add(Calendar.DAY_OF_MONTH, -1);
 
         ZmanimCalendar zc = new ZmanimCalendar();
         zc.setGeoLocation(new GeoLocation("loc", lat, lon, elev, TimeZone.getDefault()));

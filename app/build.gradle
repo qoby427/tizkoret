@@ -80,6 +80,17 @@ android {
     }
 }
 
+android {
+    packaging {
+        resources {
+            excludes += [
+                    "META-INF/NOTICE.md",
+                    "META-INF/LICENSE.md"
+            ]
+        }
+    }
+}
+
 dependencies {
     // Remove duplicates
     implementation libs.appcompat
@@ -98,4 +109,7 @@ dependencies {
     testImplementation libs.junit
     androidTestImplementation libs.ext.junit
     androidTestImplementation libs.espresso.core
+
+    implementation libs.android.mail
+    implementation libs.android.activation
 }

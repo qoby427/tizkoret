@@ -1,5 +1,6 @@
 [versions]
 agp = "9.0.0"
+androidMail = "1.6.8"
 androidxAppcompat = "1.6.1"
 appcompatVersion = "1.7.0"
 billing = "8.3.0"
@@ -36,6 +37,8 @@ zstdJni = "1.5.7-6"
 workRuntime = "2.11.0"
 
 [libraries]
+android-activation = { module = "com.sun.mail:android-activation", version.ref = "androidMail" }
+android-mail = { module = "com.sun.mail:android-mail", version.ref = "androidMail" }
 appcompat-v161 = { module = "androidx.appcompat:appcompat", version.ref = "androidxAppcompat" }
 appcompat-v170 = { module = "androidx.appcompat:appcompat", version.ref = "appcompatVersion" }
 billing = { module = "com.android.billingclient:billing", version.ref = "billing" }

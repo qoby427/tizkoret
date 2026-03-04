@@ -30,6 +30,11 @@ public class UserSettings {
     private static final String KEY_LNG = "longitude";
     private static final String KEY_SHABBAT_ALARM = "shabbat_alarm_enabled";
     private static final String KEY_YAHRZEIT_LIST = "yahrzeit_list";
+    private enum DateFormat {
+        AMERICAN,
+        EUROPEAN,
+    }
+    private static DateFormat dateFormat = DateFormat.AMERICAN;
 
     // -----------------------------
     //  Coordinates
@@ -63,6 +68,8 @@ public class UserSettings {
 
     public static void clearEvents(Context ctx) {
         prefs(ctx).edit().putLong("processed_shabbat_time", 0).apply();
+        prefs(ctx).edit().putLong("debug_last_candle", 0).apply();
+
         List<YahrzeitEntry> list = loadYahrzeitList(ctx);
         for (YahrzeitEntry entry : list)
             prefs(ctx).edit().putLong("processed_yahrzeit_" + entry.name, 0).apply();
@@ -157,29 +164,37 @@ public class UserSettings {
         // Fallback to system default alarm sound
         return RingtoneManager.getDefaultUri(RingtoneManager.TYPE_ALARM);
     }
-
     public static void setShabbatRingtone(Context context, Uri uri) {
         prefs(context).edit().putString("shabbat_ringtone", uri.toString()).apply();
     }
-
-    // -----------------------------
-    //  Internal
-    // -----------------------------
     private static SharedPreferences prefs(Context ctx) {
-        return ctx.getSharedPreferences(PREFS, MODE_PRIVATE);
+        return ctx.getApplicationContext().getSharedPreferences(PREFS, MODE_PRIVATE);
     }
-
+    public static String getDateTime(long millis) {
+        SimpleDateFormat sdf = new SimpleDateFormat("MMM d yyyy h:mm a", Locale.getDefault());
+        return sdf.format(new Date(millis));
+    }
     public static String getTimestamp(long millis) {
-        SimpleDateFormat sdf = new SimpleDateFormat("h:mm a", Locale.getDefault());
+        SimpleDateFormat sdf = new SimpleDateFormat(getTimeFormat(), Locale.getDefault());
         return sdf.format(new Date(millis));
     }
     public static String getLogTime(long millis) {
-        SimpleDateFormat sdf = new SimpleDateFormat("MMM d h:mm a", Locale.getDefault());
+        SimpleDateFormat sdf = new SimpleDateFormat(getDateFormat() + " " + getTimeFormat(), Locale.getDefault());
         return sdf.format(new Date(millis));
     }
+    public static void setDateFormat(boolean american) {
+        dateFormat = american ? DateFormat.AMERICAN : DateFormat.EUROPEAN;
+    }
+    private static String getDateFormat() {
+        return dateFormat == DateFormat.AMERICAN ? "MMM d": "d MMM";
+    }
+    private static String getTimeFormat() {
+        return dateFormat == DateFormat.AMERICAN ? "h:mm a": "HH:mm";
+    }
+
     public static void log(String msg) {
         Log.d("Tizcoret Debug", msg);
-        if(!isDebug()) {
+        if(isDebug()) {
             String log = logprefs.getString("log", "");
             logprefs.edit().putString("log", log + "\n" + msg).apply();
         }

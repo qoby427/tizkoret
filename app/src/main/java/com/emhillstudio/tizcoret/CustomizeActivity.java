@@ -98,7 +98,7 @@ public class CustomizeActivity extends MessageActivity {
             String format = checkedId == R.id.format_mmdd
                     ? "MM/dd/yyyy"
                     : "dd/MM/yyyy";
-
+            UserSettings.setDateFormat(checkedId == R.id.format_mmdd);
             prefs.edit().putString("date_format", format).apply();
         });
     }

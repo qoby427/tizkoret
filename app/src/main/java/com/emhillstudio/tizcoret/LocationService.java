@@ -1,16 +1,20 @@
 package com.emhillstudio.tizcoret;
 
+import android.Manifest;
 import android.annotation.SuppressLint;
 import android.app.Notification;
 import android.app.NotificationChannel;
 import android.app.NotificationManager;
 import android.app.Service;
 import android.content.Intent;
+import android.content.pm.PackageManager;
+import android.net.Uri;
 import android.os.Build;
 import android.os.Handler;
 import android.os.IBinder;
 import android.os.Looper;
 
+import androidx.core.app.ActivityCompat;
 import androidx.core.app.NotificationCompat;
 
 import com.google.android.gms.location.FusedLocationProviderClient;
@@ -18,48 +22,12 @@ import com.google.android.gms.location.LocationServices;
 import com.google.android.gms.location.Priority;
 
 public class LocationService extends Service {
-
     @Override
-    public void onCreate() {
-        super.onCreate();
-    }
-
-    @Override
-    @SuppressLint("MissingPermission")
     public int onStartCommand(Intent intent, int flags, int startId) {
         startSilentNotification();
 
         String json = intent != null ? intent.getStringExtra("event_info") : null;
-/*
-        FusedLocationProviderClient fused =
-                LocationServices.getFusedLocationProviderClient(this);
 
-        fused.getCurrentLocation(
-                Priority.PRIORITY_BALANCED_POWER_ACCURACY,
-                null
-        ).addOnSuccessListener(loc -> {
-
-            if (loc != null) {
-                double lat = loc.getLatitude();
-                double lng = loc.getLongitude();
-
-                UserSettings.log("LocationService - new location: " + lat + ", " + lng);
-
-                UserSettings.setLatitude(this, lat);
-                UserSettings.setLongitude(this, lng);
-            } else {
-                UserSettings.log("LocationService - location is null");
-            }
-
-            if(json != null)
-                new EventManager(LocationService.this).scheduleIfNeeded(json);
-
-            new Handler(Looper.getMainLooper()).postDelayed(() -> {
-                stopForeground(true);
-                stopSelf();
-            }, 5000); // 5 seconds
-        });
-*/
         new EventManager(LocationService.this).scheduleIfNeeded(json);
 
         stopForeground(true);
@@ -94,7 +62,6 @@ public class LocationService extends Service {
 
         startForeground(1, notification);
     }
-
     @Override
     public IBinder onBind(Intent intent) {
         return null;

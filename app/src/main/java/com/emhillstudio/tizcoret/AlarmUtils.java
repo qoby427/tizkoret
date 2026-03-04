@@ -5,14 +5,19 @@ import static android.content.Context.MODE_PRIVATE;
 import android.annotation.SuppressLint;
 import android.app.AlarmManager;
 import android.app.PendingIntent;
+import android.content.ContentUris;
+import android.content.ContentValues;
 import android.content.Context;
 import android.content.Intent;
 import android.content.SharedPreferences;
+import android.net.Uri;
+import android.provider.CalendarContract;
 
 import com.google.gson.Gson;
 
 import java.util.Arrays;
 import java.util.Calendar;
+import java.util.TimeZone;
 
 public class AlarmUtils {
     // ------------------------------------------------------------
@@ -50,6 +55,8 @@ public class AlarmUtils {
                 pi
         );
 
+        new ShabbatHelper(context).updateCalendarEvent(context, info);
+
         UserSettings.log("AlarmUtils::scheduleMasterEvent for " + info.receiverClass().getSimpleName() +
             " reqcode=" + reqcode + " for " + UserSettings.getLogTime(info.eventTime) + " at " + UserSettings.getLogTime(trigger));
     }
@@ -60,8 +67,8 @@ public class AlarmUtils {
         if (am == null)
             return;
         for (EventManager.AlarmEntry  e: Arrays.asList(info.early, info.final5)) {
-            UserSettings.log("AlarmUtils::scheduleEntry " + e.action + " req code="+e.requestCode+
-                    " at " + UserSettings.getLogTime(e.triggerAt));
+            UserSettings.log("AlarmUtils::scheduleEntry " + info.receiverClass().getSimpleName() + " " +
+                    e.action + " req code=" + e.requestCode + " at " + UserSettings.getLogTime(e.triggerAt));
             SharedPreferences prefs = context.getSharedPreferences(UserSettings.PREFS, MODE_PRIVATE);
             prefs.edit().putString(e.action, e.payloadJson.toString()).apply();
 
@@ -87,9 +94,10 @@ public class AlarmUtils {
         AlarmManager am = (AlarmManager) context.getSystemService(Context.ALARM_SERVICE);
         if (am == null) return;
 
-        UserSettings.log("AlarmUtils::cancelEntry req codes " + info.early.requestCode + " " + info.final5.requestCode);
-
         for (EventManager.AlarmEntry  e: Arrays.asList(info.early, info.final5)) {
+            UserSettings.log("AlarmUtils::cancelEntry " + info.receiverClass().getSimpleName() + " " +
+                    e.action + " req code " + e.requestCode);
+
             Intent intent = new Intent(context, info.receiverClass());
             intent.setAction(e.action);
 
@@ -103,6 +111,7 @@ public class AlarmUtils {
             if (pi != null) {
                 am.cancel(pi);
                 pi.cancel();
+                UserSettings.log("AlarmUtils::cancelled entry " + e.action + " req=" + e.requestCode);
             }
         }
     }
@@ -127,6 +136,7 @@ public class AlarmUtils {
         if (pi != null) {
             am.cancel(pi);
             pi.cancel();
+            UserSettings.log("AlarmUtils::cancelled master entry req=" + reqcode);
         }
     }
     private static long one_am(long event) {

@@ -22,10 +22,9 @@ public class MasterReceiver extends BroadcastReceiver {
             svc.putExtra("event_info", json);
             ContextCompat.startForegroundService(ctx, svc);
 
-            //new EventManager(ctx).scheduleIfNeeded(json);
             prefs.edit().remove(intent.getAction()).apply();
         } catch (Exception e) {
-            System.out.println("MasterReceiver::onReceive: " + e);
+            UserSettings.log("MasterReceiver::onReceive: " + e);
         }
     }
 }
