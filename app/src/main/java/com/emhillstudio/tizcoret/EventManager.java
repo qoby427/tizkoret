@@ -39,7 +39,7 @@ public class EventManager {
     public static final int SHABBAT = 3001;
     public static final int YAHRZEIT = 4001;
     public static final int MASTER = 5001;
-
+    private boolean after_reboot = false;
     private static SharedPreferences prefs;
     public static SharedPreferences getPrefs() {
         return prefs;
@@ -119,6 +119,11 @@ public class EventManager {
     // ------------------------------------------------------------
     // PUBLIC API
     // ------------------------------------------------------------
+    public void scheduleAfterReboot() {
+        after_reboot = true;
+        scheduleIfNeeded();
+        after_reboot = false;
+    }
     public void scheduleIfNeeded() {
         UserSettings.log("");
         UserSettings.log("EventManager::scheduleIfNeeded: Starting master planning +++++++++++++++++++++++++++++++++");
@@ -242,7 +247,7 @@ public class EventManager {
         if(processed_shabbat > 0)
             UserSettings.log("EventManager::computeEvents: processed candle time " + UserSettings.getLogTime(processed_shabbat));
 
-        if (UserSettings.isDebug() || processed_shabbat < candleTime) {
+        if (UserSettings.isDebug() || after_reboot || processed_shabbat < candleTime) {
             prefs.edit().putLong("processed_shabbat_time", candleTime).apply();
 
             list.add(buildEvent(
@@ -265,7 +270,7 @@ public class EventManager {
             long current_yahrzeit = HebrewUtils.computeYahrzeitCandleLighting(ctx, entry.inYear);
             long processed_yahrzeit = prefs.getLong("processed_yahrzeit_"+entry.name, 0);
 
-            if (UserSettings.isDebug() || processed_yahrzeit < current_yahrzeit) {
+            if (UserSettings.isDebug() || after_reboot || processed_yahrzeit < current_yahrzeit) {
                 prefs.edit().putLong("processed_yahrzeit_" + entry.name, current_yahrzeit).apply();
 
                 ret.add(buildEvent(YAHRZEIT,
