@@ -215,7 +215,7 @@ public class MainActivity extends MessageActivity {
 
         eventManager = new EventManager(this);
 
-        //if(UserSettings.isDebug())
+        if(UserSettings.isDebug())
             UserSettings.clearEvents(this);
 
         if(UserSettings.isDebug()) {
@@ -334,8 +334,7 @@ public class MainActivity extends MessageActivity {
 
                         pendingAction = PendingAction.ADD_SHABBAT_EVENTS;
                         if (hasLocationPermission() && hasCalendarPermission()) {
-                            //new ShabbatHelper(this).addNextFridayShabbatEvents();
-                            eventManager.scheduleIfNeeded();
+                            eventManager.scheduleAfterReboot();
                             return;
                         }
 
