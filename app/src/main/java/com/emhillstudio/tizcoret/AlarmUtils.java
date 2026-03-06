@@ -24,12 +24,12 @@ public class AlarmUtils {
     // PUBLIC API — schedule/cancel BOTH alarms for this event
     // ------------------------------------------------------------
     @SuppressLint("ScheduleExactAlarm")
-    public static void scheduleMasterEvent(Context context, EventManager.EventInfo info) {
+    public static void scheduleMasterEvent(Context context, EventManager.EventInfo info, boolean after_reboot) {
         AlarmManager am = (AlarmManager) context.getSystemService(Context.ALARM_SERVICE);
         if (am == null)
             return;
 
-        long trigger = one_am(info.eventTime);
+        long trigger = one_am(info.eventTime, after_reboot);
         int reqcode = EventManager.getMasterReqCode(info);
 
         String json = new Gson().toJson(info);
@@ -139,11 +139,14 @@ public class AlarmUtils {
             UserSettings.log("AlarmUtils::cancelled master entry req=" + reqcode);
         }
     }
-    private static long one_am(long event) {
-        if(UserSettings.isDebug()) {
+    public static long one_am(long event, boolean after_reboot) {
+        if (UserSettings.isDebug()) {
             return event - 13 * 60_000L;
         }
-        // Compute 1:00 AM local time on the event date
+
+        long now = System.currentTimeMillis();
+
+        // Compute the intended 1:00 AM master event time
         Calendar cal = Calendar.getInstance();
         cal.setTimeInMillis(event);
         cal.set(Calendar.HOUR_OF_DAY, 1);
@@ -151,6 +154,13 @@ public class AlarmUtils {
         cal.set(Calendar.SECOND, 0);
         cal.set(Calendar.MILLISECOND, 0);
 
-        return cal.getTimeInMillis();
+        long masterTime = cal.getTimeInMillis();
+
+        if (after_reboot && masterTime < now) {
+            // Master event is in the past → schedule a catch-up event
+            return now + 2 * 60_000L; // 2 minutes from now
+        }
+
+        return masterTime;
     }
 }

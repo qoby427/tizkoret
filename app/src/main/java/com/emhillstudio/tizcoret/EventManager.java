@@ -173,10 +173,10 @@ public class EventManager {
                 long eventId = new ShabbatHelper(ctx).insertCalendarEvent(e);
                 if (eventId != 0) {
                     UserSettings.log("EventManager::schedule: added " + e.receiverClass().getSimpleName() +
-                            " at " + UserSettings.getLogTime(e.eventTime));
+                        " at " + UserSettings.getLogTime(e.eventTime));
                 }
             }
-            AlarmUtils.scheduleMasterEvent(ctx, e);
+            AlarmUtils.scheduleMasterEvent(ctx, e, after_reboot);
         }
     }
     private void schedule(EventInfo e) {
