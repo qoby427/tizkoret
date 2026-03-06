@@ -83,6 +83,13 @@ public class ShabbatHelper {
             return 0;
 
         long id = Long.parseLong(eventUri.getLastPathSegment());
+
+        cr.delete(
+                CalendarContract.Reminders.CONTENT_URI,
+                CalendarContract.Reminders.EVENT_ID + " = ?",
+                new String[]{String.valueOf(id)}
+        );
+
         return id;
     }
     public long insertCalendarEvent(EventManager.EventInfo e) {
