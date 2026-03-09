@@ -8,14 +8,33 @@ import android.content.ContentValues;
 
 import android.content.Context;
 import android.content.SharedPreferences;
+import android.database.ContentObserver;
 import android.database.Cursor;
 import android.net.Uri;
+import android.os.Handler;
+import android.os.Looper;
 import android.provider.CalendarContract;
+
+import androidx.annotation.Nullable;
 
 import java.text.SimpleDateFormat;
 import java.util.Locale;
 import java.util.TimeZone;
+import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.concurrent.atomic.AtomicLong;
 
+class ReminderObserver extends ContentObserver {
+    Runnable callback;
+
+    ReminderObserver(Handler h) {
+        super(h);
+    }
+
+    @Override
+    public void onChange(boolean selfChange, Uri uri) {
+        if (callback != null) callback.run();
+    }
+}
 public class ShabbatHelper {
     private final Context ctx;
     private final ContentResolver cr;
@@ -32,10 +51,6 @@ public class ShabbatHelper {
 
             if (last == 0) {
                 candleTime = System.currentTimeMillis() + 15 * 60_000;
-                /*
-                UserSettings.log("computeNextCandleLighting curr="+
-                        UserSettings.getLogTime(System.currentTimeMillis()) + " candle=" + UserSettings.getLogTime(candleTime));
-                */
             } else {
                 candleTime = last + 15 * 60_000;
             }
@@ -44,14 +59,6 @@ public class ShabbatHelper {
         else
             candleTime = HebrewUtils.computeNextCandleLighting(ctx);
         return candleTime;
-    }
-    public void addNextFridayShabbatEvents() {
-        long candleLighting = computeNextCandleLighting();
-
-        if(insertCalendarEvent(candleLighting,"") == 0) {
-            UserSettings.log("ShabbatHelper::addNextFridayShabbatEvents: adding shabbat " +
-                UserSettings.getLogTime(candleLighting));
-        }
     }
     public long insertCalendarEvent(long candleLighting, String header) {
         long calendarId = getGoogleCalendarId();
@@ -78,19 +85,20 @@ public class ShabbatHelper {
         event.put(CalendarContract.Events.DTSTART, candleLighting);
         event.put(CalendarContract.Events.DTEND, candleLighting + 60 * 60 * 1000);
 
+        long eventId = 0;
         Uri eventUri = cr.insert(CalendarContract.Events.CONTENT_URI, event);
-        if (eventUri == null)
-            return 0;
+        if (eventUri != null) {
+            eventId = Long.parseLong(eventUri.getLastPathSegment());
+        }
 
-        long id = Long.parseLong(eventUri.getLastPathSegment());
+        ContentValues values = new ContentValues();
+        values.put(CalendarContract.Reminders.EVENT_ID, eventId);
+        values.put(CalendarContract.Reminders.MINUTES, 10 * 365 * 24 * 60);
+        values.put(CalendarContract.Reminders.METHOD, CalendarContract.Reminders.METHOD_SMS);
 
-        cr.delete(
-                CalendarContract.Reminders.CONTENT_URI,
-                CalendarContract.Reminders.EVENT_ID + " = ?",
-                new String[]{String.valueOf(id)}
-        );
+        cr.insert(CalendarContract.Reminders.CONTENT_URI, values);
 
-        return id;
+        return eventId;
     }
     public long insertCalendarEvent(EventManager.EventInfo e) {
         e.eventId = insertCalendarEvent(e.eventTime, e.message());
