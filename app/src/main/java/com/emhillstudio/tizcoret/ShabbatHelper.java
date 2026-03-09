@@ -93,8 +93,8 @@ public class ShabbatHelper {
 
         ContentValues values = new ContentValues();
         values.put(CalendarContract.Reminders.EVENT_ID, eventId);
-        values.put(CalendarContract.Reminders.MINUTES, 10 * 365 * 24 * 60);
-        values.put(CalendarContract.Reminders.METHOD, CalendarContract.Reminders.METHOD_SMS);
+        values.put(CalendarContract.Reminders.MINUTES, 0);
+        values.put(CalendarContract.Reminders.METHOD, CalendarContract.Reminders.METHOD_DEFAULT);
 
         cr.insert(CalendarContract.Reminders.CONTENT_URI, values);
 
