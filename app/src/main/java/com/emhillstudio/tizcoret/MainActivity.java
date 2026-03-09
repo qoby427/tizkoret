@@ -29,9 +29,6 @@ import javax.mail.Session;
 import android.view.View;
 import android.widget.TextView;
 
-import com.google.android.gms.location.FusedLocationProviderClient;
-import com.google.android.gms.location.LocationServices;
-import com.google.android.gms.location.Priority;
 import com.google.android.material.button.MaterialButton;
 
 import com.kosherjava.zmanim.ZmanimCalendar;
@@ -143,7 +140,7 @@ public class MainActivity extends MessageActivity {
             if (hasLocationPermission() && hasCalendarPermission()) {
                 updateCalendar();
                 if(UserSettings.isShabbatAlarmEnabled(this))
-                    eventManager.scheduleIfNeeded();
+                    eventManager.scheduleImmediately();
                 return;
             }
 
@@ -253,7 +250,7 @@ public class MainActivity extends MessageActivity {
     private void updateCalendar() {
         String err = "Calendar updated";
         UserSettings.saveYahrzeitList(this, yahrzeitAdapter.getEntries());
-        eventManager.scheduleIfNeeded();
+        eventManager.scheduleImmediately();
 
         showMessage(err, true);
     }
@@ -296,11 +293,11 @@ public class MainActivity extends MessageActivity {
         if (requestCode == REQ_CALENDAR) {
             if (granted) {
                 if (pendingAction == PendingAction.ADD_SHABBAT_EVENTS) {
-                    eventManager.scheduleIfNeeded();
+                    eventManager.scheduleImmediately();
                 } else if (pendingAction == PendingAction.UPDATE_CALENDAR) {
                     updateCalendar();
                     if(UserSettings.isShabbatAlarmEnabled(this))
-                        eventManager.scheduleIfNeeded();
+                        eventManager.scheduleImmediately();
                 }
             }
 
@@ -334,7 +331,7 @@ public class MainActivity extends MessageActivity {
 
                         pendingAction = PendingAction.ADD_SHABBAT_EVENTS;
                         if (hasLocationPermission() && hasCalendarPermission()) {
-                            eventManager.scheduleAfterReboot();
+                            eventManager.scheduleImmediately();
                             return;
                         }
 
@@ -474,11 +471,11 @@ public class MainActivity extends MessageActivity {
                 // NOW continue the Shabbat flow
                 if (setCalendarPerms()) {
                     if (pendingAction == PendingAction.ADD_SHABBAT_EVENTS) {
-                        eventManager.scheduleIfNeeded();
+                        eventManager.scheduleImmediately();
                     } else if (pendingAction == PendingAction.UPDATE_CALENDAR) {
                         updateCalendar();
                         if(UserSettings.isShabbatAlarmEnabled(MainActivity.this))
-                            eventManager.scheduleIfNeeded();
+                            eventManager.scheduleImmediately();
                     }
                 }
             }

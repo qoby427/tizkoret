@@ -2,20 +2,10 @@ package com.emhillstudio.tizcoret;
 
 import static android.content.Context.MODE_PRIVATE;
 
-import static androidx.core.content.ContextCompat.startActivity;
-
 import android.annotation.SuppressLint;
-import android.content.ContentUris;
-import android.content.ContentValues;
 import android.content.Context;
-import android.content.Intent;
 import android.content.SharedPreferences;
 import android.location.Location;
-import android.location.LocationListener;
-import android.location.LocationRequest;
-import android.net.Uri;
-import android.os.Build;
-import android.provider.CalendarContract;
 
 import com.google.android.gms.location.FusedLocationProviderClient;
 import com.google.android.gms.location.LocationServices;
@@ -25,8 +15,6 @@ import com.google.gson.Gson;
 import org.json.JSONObject;
 
 import java.util.ArrayList;
-import java.util.Calendar;
-import java.util.Date;
 import java.util.List;
 import java.util.Map;
 
@@ -39,7 +27,7 @@ public class EventManager {
     public static final int SHABBAT = 3001;
     public static final int YAHRZEIT = 4001;
     public static final int MASTER = 5001;
-    private boolean after_reboot = false;
+    private boolean immediately = false;
     private static SharedPreferences prefs;
     public static SharedPreferences getPrefs() {
         return prefs;
@@ -119,10 +107,10 @@ public class EventManager {
     // ------------------------------------------------------------
     // PUBLIC API
     // ------------------------------------------------------------
-    public void scheduleAfterReboot() {
-        after_reboot = true;
+    public void scheduleImmediately() {
+        immediately = true;
         scheduleIfNeeded();
-        after_reboot = false;
+        immediately = false;
     }
     public void scheduleIfNeeded() {
         UserSettings.log("");
@@ -176,7 +164,7 @@ public class EventManager {
                         " at " + UserSettings.getLogTime(e.eventTime));
                 }
             }
-            AlarmUtils.scheduleMasterEvent(ctx, e, after_reboot);
+            AlarmUtils.scheduleMasterEvent(ctx, e, immediately);
         }
     }
     private void schedule(EventInfo e) {
@@ -247,7 +235,7 @@ public class EventManager {
         if(processed_shabbat > 0)
             UserSettings.log("EventManager::computeEvents: processed candle time " + UserSettings.getLogTime(processed_shabbat));
 
-        if (UserSettings.isDebug() || after_reboot || processed_shabbat < candleTime) {
+        if (UserSettings.isDebug() || immediately || processed_shabbat < candleTime) {
             prefs.edit().putLong("processed_shabbat_time", candleTime).apply();
 
             list.add(buildEvent(
@@ -270,7 +258,7 @@ public class EventManager {
             long current_yahrzeit = HebrewUtils.computeYahrzeitCandleLighting(ctx, entry.inYear);
             long processed_yahrzeit = prefs.getLong("processed_yahrzeit_"+entry.name, 0);
 
-            if (UserSettings.isDebug() || after_reboot || processed_yahrzeit < current_yahrzeit) {
+            if (UserSettings.isDebug() || immediately || processed_yahrzeit < current_yahrzeit) {
                 prefs.edit().putLong("processed_yahrzeit_" + entry.name, current_yahrzeit).apply();
 
                 ret.add(buildEvent(YAHRZEIT,
