@@ -89,15 +89,14 @@ public class ShabbatHelper {
         Uri eventUri = cr.insert(CalendarContract.Events.CONTENT_URI, event);
         if (eventUri != null) {
             eventId = Long.parseLong(eventUri.getLastPathSegment());
+            
+            ContentValues values = new ContentValues();
+            values.put(CalendarContract.Reminders.EVENT_ID, eventId);
+            values.put(CalendarContract.Reminders.MINUTES, 0);
+            values.put(CalendarContract.Reminders.METHOD, CalendarContract.Reminders.METHOD_EMAIL);
+
+            cr.insert(CalendarContract.Reminders.CONTENT_URI, values);
         }
-
-        ContentValues values = new ContentValues();
-        values.put(CalendarContract.Reminders.EVENT_ID, eventId);
-        values.put(CalendarContract.Reminders.MINUTES, 0);
-        values.put(CalendarContract.Reminders.METHOD, CalendarContract.Reminders.METHOD_DEFAULT);
-
-        cr.insert(CalendarContract.Reminders.CONTENT_URI, values);
-
         return eventId;
     }
     public long insertCalendarEvent(EventManager.EventInfo e) {

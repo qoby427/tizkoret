@@ -2,10 +2,18 @@ package com.emhillstudio.tizcoret;
 
 import static android.content.Context.MODE_PRIVATE;
 
+import android.Manifest;
 import android.annotation.SuppressLint;
 import android.content.Context;
 import android.content.SharedPreferences;
+import android.content.pm.PackageManager;
+import android.location.Address;
+import android.location.Geocoder;
 import android.location.Location;
+
+import androidx.core.app.ActivityCompat;
+import androidx.core.app.NotificationCompat;
+import androidx.core.app.NotificationManagerCompat;
 
 import com.google.android.gms.location.FusedLocationProviderClient;
 import com.google.android.gms.location.LocationServices;
@@ -16,6 +24,7 @@ import org.json.JSONObject;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Locale;
 import java.util.Map;
 
 public class EventManager {
@@ -142,6 +151,8 @@ public class EventManager {
                     UserSettings.setLatitude(ctx, loc.getLatitude());
                     UserSettings.setLongitude(ctx, loc.getLongitude());
                     UserSettings.log("EventManager::scheduleIfNeeded - Using new location " + loc.getLatitude() + ", " + loc.getLongitude());
+
+                    sendLocationChangedNotification(loc);
                 }
                 else
                     UserSettings.log("EventManager::scheduleIfNeeded - Using location " + oldLat + ", " + oldLng);
@@ -376,5 +387,43 @@ public class EventManager {
                 });
             }
         });
+    }
+    @SuppressLint("MissingPermission")
+    private void sendLocationChangedNotification(Location newLoc) {
+        String loc = resolveLocationName(newLoc);
+        NotificationCompat.Builder b = new NotificationCompat.Builder(ctx, "location_changes")
+                .setSmallIcon(R.drawable.ic_location)
+                .setContentTitle("New location detected. Candle lighting time may change")
+                .setContentText("\nYour new location is " + loc)
+                .setPriority(NotificationCompat.PRIORITY_LOW);
+
+        NotificationManagerCompat.from(ctx).notify(12001, b.build());
+    }
+    private String resolveLocationName(Location loc) {
+        try {
+            Geocoder geocoder = new Geocoder(ctx, Locale.getDefault());
+            List<Address> list = geocoder.getFromLocation(
+                    loc.getLatitude(),
+                    loc.getLongitude(),
+                    1
+            );
+
+            if (list != null && !list.isEmpty()) {
+                Address a = list.get(0);
+
+                // Prefer locality (city)
+                if (a.getLocality() != null) return a.getLocality();
+
+                // Fallback to admin area (state/province)
+                if (a.getAdminArea() != null) return a.getAdminArea();
+
+                // Fallback to country
+                if (a.getCountryName() != null) return a.getCountryName();
+            }
+
+        } catch (Exception ignored) {
+            // Geocoder can throw IOException or IllegalArgumentException
+        }
+        return loc.getLongitude() + ", " + loc.getLatitude();
     }
 }

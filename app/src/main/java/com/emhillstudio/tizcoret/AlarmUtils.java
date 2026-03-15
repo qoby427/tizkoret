@@ -24,12 +24,12 @@ public class AlarmUtils {
     // PUBLIC API — schedule/cancel BOTH alarms for this event
     // ------------------------------------------------------------
     @SuppressLint("ScheduleExactAlarm")
-    public static void scheduleMasterEvent(Context context, EventManager.EventInfo info, boolean after_reboot) {
+    public static void scheduleMasterEvent(Context context, EventManager.EventInfo info, boolean immediately) {
         AlarmManager am = (AlarmManager) context.getSystemService(Context.ALARM_SERVICE);
         if (am == null)
             return;
 
-        long trigger = one_am(info.eventTime, after_reboot);
+        long trigger = one_am(info.eventTime, immediately);
         int reqcode = EventManager.getMasterReqCode(info);
 
         String json = new Gson().toJson(info);
@@ -66,7 +66,9 @@ public class AlarmUtils {
         AlarmManager am = (AlarmManager) context.getSystemService(Context.ALARM_SERVICE);
         if (am == null)
             return;
-        for (EventManager.AlarmEntry  e: Arrays.asList(info.early, info.final5)) {
+
+        for (EventManager.AlarmEntry e: Arrays.asList(info.early, info.final5))
+        {
             UserSettings.log("AlarmUtils::scheduleEntry " + info.receiverClass().getSimpleName() + " " +
                     e.action + " req code=" + e.requestCode + " at " + UserSettings.getLogTime(e.triggerAt));
             SharedPreferences prefs = context.getSharedPreferences(UserSettings.PREFS, MODE_PRIVATE);
