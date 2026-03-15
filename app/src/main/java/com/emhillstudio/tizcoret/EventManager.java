@@ -147,7 +147,7 @@ public class EventManager {
 
                 float[] result = new float[1];
                 Location.distanceBetween(oldLat, oldLng, loc.getLatitude(), loc.getLongitude(), result);
-                if(result[0] > 1000) {
+                if(result[0] > 20000) {
                     UserSettings.setLatitude(ctx, loc.getLatitude());
                     UserSettings.setLongitude(ctx, loc.getLongitude());
                     UserSettings.log("EventManager::scheduleIfNeeded - Using new location " + loc.getLatitude() + ", " + loc.getLongitude());
@@ -382,7 +382,11 @@ public class EventManager {
                     if (last != null) {
                         listener.onLocationAvailable(last);
                     } else {
-                        listener.onLocationUnavailable();
+                        Location passive = PassiveLocationStore.get();
+                        if (passive != null)
+                            listener.onLocationAvailable(passive);
+                        else
+                            listener.onLocationUnavailable();
                     }
                 });
             }

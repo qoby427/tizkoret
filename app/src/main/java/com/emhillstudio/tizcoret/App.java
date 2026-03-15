@@ -1,16 +1,42 @@
 package com.emhillstudio.tizcoret;
 
+import android.annotation.SuppressLint;
 import android.app.Application;
 import android.app.NotificationChannel;
 import android.app.NotificationManager;
 import android.os.Build;
+import android.os.Looper;
+
+import com.google.android.gms.location.FusedLocationProviderClient;
+import com.google.android.gms.location.LocationCallback;
+import com.google.android.gms.location.LocationRequest;
+import com.google.android.gms.location.LocationResult;
+import com.google.android.gms.location.LocationServices;
+import com.google.android.gms.location.Priority;
 
 public class App extends Application {
 
     @Override
+    @SuppressLint("MissingPermission")
     public void onCreate() {
         super.onCreate();
         createNotificationChannels();
+
+        LocationRequest req = new LocationRequest.Builder(0)
+            .setPriority(Priority.PRIORITY_PASSIVE)
+            .setMinUpdateIntervalMillis(0)
+            .setMinUpdateDistanceMeters(0)
+            .build();
+
+        LocationCallback cb = new LocationCallback() {
+            @Override public void onLocationResult(LocationResult r) {
+                if (r != null && r.getLastLocation() != null)
+                    PassiveLocationStore.update(r.getLastLocation());
+            }
+        };
+
+        FusedLocationProviderClient fused = LocationServices.getFusedLocationProviderClient(this);
+        fused.requestLocationUpdates(req, cb, Looper.getMainLooper());
     }
 
     private void createNotificationChannels() {
