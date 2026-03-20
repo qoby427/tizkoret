@@ -26,7 +26,10 @@ import android.net.Uri;
 import android.os.Build;
 import android.os.Bundle;
 import javax.mail.Session;
+
+import android.text.TextUtils;
 import android.view.View;
+import android.widget.EditText;
 import android.widget.TextView;
 
 import com.google.android.material.button.MaterialButton;
@@ -136,7 +139,7 @@ public class MainActivity extends MessageActivity {
         updateCalendarButton.setEnabled(!yahrzeitAdapter.getEntries().isEmpty());
         updateCalendarButton.setOnClickListener(v -> {
             pendingAction = PendingAction.UPDATE_CALENDAR;
-
+            yahrzeitAdapter.setEntries();
             if (hasLocationPermission() && hasCalendarPermission()) {
                 updateCalendar();
                 if(UserSettings.isShabbatAlarmEnabled(this))

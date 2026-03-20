@@ -15,7 +15,6 @@ import com.google.android.gms.location.LocationServices;
 import com.google.android.gms.location.Priority;
 
 public class App extends Application {
-
     @Override
     @SuppressLint("MissingPermission")
     public void onCreate() {

@@ -4,7 +4,9 @@ import android.content.Context;
 import android.content.SharedPreferences;
 import android.os.Build;
 import android.text.Editable;
+import android.text.TextUtils;
 import android.text.TextWatcher;
+import android.view.Gravity;
 import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewGroup;
@@ -71,6 +73,9 @@ public class YahrzeitAdapter extends RecyclerView.Adapter<RecyclerView.ViewHolde
         View v = LayoutInflater.from(parent.getContext())
                 .inflate(R.layout.item_yahrzeit_row, parent, false);
 
+        TextView inYear = v.findViewById(R.id.inYear);
+        inYear.setSelected(true); // required for marquee to run
+
         RowViewHolder holder = new RowViewHolder(v);
         String format = prefs.getString("date_format", "MM/dd/yyyy");
         holder.dateField.setHint(format.toUpperCase(Locale.US));
@@ -121,12 +126,14 @@ public class YahrzeitAdapter extends RecyclerView.Adapter<RecyclerView.ViewHolde
         row.nameWatcher = new SimpleTextWatcher() {
             @Override
             public void afterTextChanged(Editable s) {
-                if (row.isBinding) return;
+                if (row.isBinding)
+                    return;
 
                 row.nameField.setBackgroundResource(0);
 
                 String newName = s.toString();
-                if (newName.equals(entry.name)) return;
+                if (newName.equals(entry.name))
+                    return;
 
                 entry.name = newName;
             }
@@ -152,20 +159,28 @@ public class YahrzeitAdapter extends RecyclerView.Adapter<RecyclerView.ViewHolde
                 String digits = s.toString().replaceAll("[^0-9]", "");
                 StringBuilder formatted = new StringBuilder();
 
-                if (digits.length() > 0) {
-                    formatted.append(digits.substring(0, Math.min(2, digits.length())));
-                    if (digits.length() >= 3) formatted.append("/");
+                if (digits.length() == 0) {
+                    row.hebrewField.setText("");
+                    row.inYearField.setText("");
+                    row.dateField.setText("");
+                    entry.diedDate = null;
                 }
-                if (digits.length() > 2) {
-                    formatted.append(digits.substring(2, Math.min(4, digits.length())));
-                    if (digits.length() >= 5) formatted.append("/");
-                }
-                if (digits.length() > 4) {
-                    formatted.append(digits.substring(4, Math.min(8, digits.length())));
-                }
+                else {
+                    if (digits.length() > 0) {
+                        formatted.append(digits.substring(0, Math.min(2, digits.length())));
+                        if (digits.length() >= 3) formatted.append("/");
+                    }
+                    if (digits.length() > 2) {
+                        formatted.append(digits.substring(2, Math.min(4, digits.length())));
+                        if (digits.length() >= 5) formatted.append("/");
+                    }
+                    if (digits.length() > 4) {
+                        formatted.append(digits.substring(4, Math.min(8, digits.length())));
+                    }
 
-                row.dateField.setText(formatted.toString());
-                row.dateField.setSelection(formatted.length());
+                    row.dateField.setText(formatted.toString());
+                    row.dateField.setSelection(formatted.length());
+                }
 
                 if (digits.length() == 8) {
                     if (isValidDate(formatted.toString())) {
@@ -238,11 +253,18 @@ public class YahrzeitAdapter extends RecyclerView.Adapter<RecyclerView.ViewHolde
     public List<YahrzeitEntry> getEntries() {
         List<YahrzeitEntry> actual = new ArrayList<>();
         for (YahrzeitEntry entry : entries)
-            if(!entry.name.isEmpty() && !entry.diedDate.toString().isEmpty() && entry.diedDate != null)
+            if(!entry.name.isEmpty() && entry.diedDate != null && !entry.diedDate.toString().isEmpty())
                 actual.add(entry);
         return actual;
     }
-
+    public void setEntries() {
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.N) {
+            entries.removeIf(e ->
+                    e.name == null || e.name.trim().isEmpty() || e.diedDate == null
+            );
+        }
+        notifyDataSetChanged();
+    }
     public void setEntries(List<YahrzeitEntry> newEntries) {
         entries = new ArrayList<>(newEntries);
         notifyDataSetChanged();
