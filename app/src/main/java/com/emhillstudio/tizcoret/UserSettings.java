@@ -114,8 +114,7 @@ public class UserSettings {
         List<YahrzeitEntry> list = gson.fromJson(json, type);
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.N) {
             list.removeIf(e ->
-                    e.name == null || e.name.trim().isEmpty() ||
-                            e.diedDate == null
+                    e.name == null || e.name.trim().isEmpty() || e.diedDate == null
             );
         }
         return list;

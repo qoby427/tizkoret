@@ -252,9 +252,17 @@ public class YahrzeitAdapter extends RecyclerView.Adapter<RecyclerView.ViewHolde
 
     public List<YahrzeitEntry> getEntries() {
         List<YahrzeitEntry> actual = new ArrayList<>();
+        boolean changed = false;
         for (YahrzeitEntry entry : entries)
-            if(!entry.name.isEmpty() && entry.diedDate != null && !entry.diedDate.toString().isEmpty())
+            if(!entry.name.isEmpty() && entry.diedDate != null && !entry.diedDate.toString().isEmpty()) {
+                if (entry.inYear.getTime() / 86400000L < System.currentTimeMillis() / 86400000L) {
+                    entry.inYear = HebrewUtils.nextYahrzeit(entry.diedDate);
+                    changed = true;
+                }
                 actual.add(entry);
+            }
+        if(changed)
+            notifyDataSetChanged();
         return actual;
     }
     public void setEntries() {
@@ -267,6 +275,11 @@ public class YahrzeitAdapter extends RecyclerView.Adapter<RecyclerView.ViewHolde
     }
     public void setEntries(List<YahrzeitEntry> newEntries) {
         entries = new ArrayList<>(newEntries);
+        for(YahrzeitEntry e: entries) {
+            if(e.diedDate != null && !e.diedDate.toString().isEmpty())
+                if(e.inYear.getTime()/86400000L < System.currentTimeMillis()/86400000L)
+                    e.inYear = HebrewUtils.nextYahrzeit(e.diedDate);
+        }
         notifyDataSetChanged();
     }
 
