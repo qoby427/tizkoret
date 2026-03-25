@@ -23,18 +23,6 @@ import java.util.TimeZone;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicLong;
 
-class ReminderObserver extends ContentObserver {
-    Runnable callback;
-
-    ReminderObserver(Handler h) {
-        super(h);
-    }
-
-    @Override
-    public void onChange(boolean selfChange, Uri uri) {
-        if (callback != null) callback.run();
-    }
-}
 public class ShabbatHelper {
     private final Context ctx;
     private final ContentResolver cr;

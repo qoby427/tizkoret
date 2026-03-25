@@ -167,9 +167,10 @@ public class EventManager {
     }
     public void schedule() {
         List<EventInfo> events = computeEvents();
+        ShabbatHelper helper = new ShabbatHelper(ctx);
         for (EventInfo e : events) {
             if(!UserSettings.isDebug()) {
-                long eventId = new ShabbatHelper(ctx).insertCalendarEvent(e);
+                long eventId = helper.insertCalendarEvent(e);
                 if (eventId != 0) {
                     UserSettings.log("EventManager::schedule: added " + e.receiverClass().getSimpleName() +
                         " at " + UserSettings.getLogTime(e.eventTime));
