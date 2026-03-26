@@ -2,16 +2,13 @@ package com.emhillstudio.tizcoret;
 
 import static android.content.Context.MODE_PRIVATE;
 
-import android.Manifest;
 import android.annotation.SuppressLint;
 import android.content.Context;
 import android.content.SharedPreferences;
-import android.content.pm.PackageManager;
 import android.location.Address;
 import android.location.Geocoder;
 import android.location.Location;
 
-import androidx.core.app.ActivityCompat;
 import androidx.core.app.NotificationCompat;
 import androidx.core.app.NotificationManagerCompat;
 
@@ -37,6 +34,7 @@ public class EventManager {
     public static final int YAHRZEIT = 4001;
     public static final int MASTER = 5001;
     private boolean immediately = false;
+    private List<YahrzeitEntry> entries;
     private static SharedPreferences prefs;
     public static SharedPreferences getPrefs() {
         return prefs;
@@ -90,6 +88,7 @@ public class EventManager {
         public String name;
         public AlarmEntry early;
         public AlarmEntry final5;
+        public YahrzeitEntry yzentry;
         public Class<?> receiverClass() {
             return type == SHABBAT
                     ? ShabbatAlarmReceiver.class
@@ -107,10 +106,12 @@ public class EventManager {
     // ------------------------------------------------------------
 
     private final Context ctx;
+    private ShabbatHelper helper;
 
     public EventManager(Context context) {
         ctx = context.getApplicationContext();
         prefs = ctx.getSharedPreferences(UserSettings.PREFS, MODE_PRIVATE);
+        helper = new ShabbatHelper(ctx);
     }
 
     // ------------------------------------------------------------
@@ -165,15 +166,22 @@ public class EventManager {
             }
         });
     }
+    public void setEntries(List<YahrzeitEntry> newEntries) {
+        entries = newEntries;
+    }
     public void schedule() {
-        List<EventInfo> events = computeEvents();
-        ShabbatHelper helper = new ShabbatHelper(ctx);
+        List<EventInfo> events = new ArrayList<>();
+        computeEvents(events);
+
         for (EventInfo e : events) {
             if(!UserSettings.isDebug()) {
                 long eventId = helper.insertCalendarEvent(e);
                 if (eventId != 0) {
+                    if(e.yzentry != null) {
+                        e.yzentry.eventId = eventId;
+                    }
                     UserSettings.log("EventManager::schedule: added " + e.receiverClass().getSimpleName() +
-                        " at " + UserSettings.getLogTime(e.eventTime));
+                        " at " + UserSettings.getLogTime(e.eventTime) + ". Event ID=" + eventId);
                 }
             }
             AlarmUtils.scheduleMasterEvent(ctx, e, immediately);
@@ -195,6 +203,8 @@ public class EventManager {
         info.final5.requestCode = getFinalReqCode(YAHRZEIT, entry.name);
         info.final5.action = "yahrzeit_alarm";
 
+        info.yzentry = entry;
+
         return info;
     }
     private EventInfo toEventInfo() {
@@ -210,6 +220,8 @@ public class EventManager {
         info.final5.requestCode = getFinalReqCode(SHABBAT, "Shabbat");
         info.final5.action = "shabbat_alarm";
 
+        info.yzentry = null;
+
         return info;
     }
     public void cancelAll() {
@@ -222,27 +234,30 @@ public class EventManager {
         AlarmUtils.cancelEntry(ctx, info);
     }
     public void cancelAllYahrzeitEvents() {
-        List<YahrzeitEntry> list = UserSettings.loadYahrzeitList(ctx);
-        for (YahrzeitEntry entry : list) {
-            EventInfo info = toEventInfo(entry);
-            AlarmUtils.cancelMaster(ctx, info);
-            AlarmUtils.cancelEntry(ctx, info);
+        for (YahrzeitEntry entry : entries) {
+            cancelYahrzeitEvent(entry);
         }
     }
-
+    public void cancelYahrzeitEvent(YahrzeitEntry entry) {
+        EventInfo info = toEventInfo(entry);
+        AlarmUtils.cancelMaster(ctx, info);
+        AlarmUtils.cancelEntry(ctx, info);
+        helper.removeCalendarEvent(entry.eventId);
+    }
 
     // ------------------------------------------------------------
     // GENERIC EVENT COMPUTATION
     // ------------------------------------------------------------
-
-    private List<EventInfo> computeEvents() {
-        List<EventInfo> list = new ArrayList<>();
-
+    private List<EventInfo> computeEvents(List<EventInfo> list) {
+        buildShabbatEvent(list);
+        buildYahrzeitEvents(list);
+        return list;
+    }
+    private boolean buildShabbatEvent(List<EventInfo> list) {
         long candleTime = new ShabbatHelper(ctx).computeNextCandleLighting();
 
         UserSettings.log("EventManager::computeEvents: next candle time " + UserSettings.getLogTime(candleTime));
 
-        // SHABBAT
         long processed_shabbat = prefs.getLong("processed_shabbat_time", 0);
         if(processed_shabbat > 0)
             UserSettings.log("EventManager::computeEvents: processed candle time " + UserSettings.getLogTime(processed_shabbat));
@@ -255,17 +270,13 @@ public class EventManager {
                     candleTime,
                     buildShabbatMessage(candleTime)
             ));
+            return true;
         }
 
-        // YAHRZEIT
-        buildYahrzeitEvents(list);
-
-        return list;
+        return false;
     }
     private void buildYahrzeitEvents(List<EventInfo> ret) {
-        List<YahrzeitEntry> list = UserSettings.loadYahrzeitList(ctx);
-
-        for (YahrzeitEntry entry : list) {
+        for (YahrzeitEntry entry : entries) {
             entry.inYear = HebrewUtils.nextYahrzeit(entry.diedDate);
             long current_yahrzeit = HebrewUtils.computeYahrzeitCandleLighting(ctx, entry.inYear);
             long processed_yahrzeit = prefs.getLong("processed_yahrzeit_"+entry.name, 0);
@@ -275,10 +286,9 @@ public class EventManager {
 
                 ret.add(buildEvent(YAHRZEIT,
                         current_yahrzeit,
-                        entry.name));
+                        entry));
             }
         }
-        UserSettings.saveYahrzeitList(ctx, list);
     }
 
     // ------------------------------------------------------------
@@ -297,7 +307,11 @@ public class EventManager {
     private int getFinalReqCode(int type, String name) {
         return type + hashName("final" + name.split(" ")[0]);
     }
-
+    private EventInfo buildEvent(int type, long eventTime, YahrzeitEntry entry) {
+        EventInfo e = buildEvent(type, eventTime, entry.name);
+        e.yzentry = entry;
+        return  e;
+    }
     private EventInfo buildEvent(int type, long eventTime, String name) {
         EventInfo e = new EventInfo();
         e.type = type;

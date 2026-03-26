@@ -93,8 +93,7 @@ public class UserSettings {
     public static void saveYahrzeitList(Context context, List<YahrzeitEntry> list) {
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.N) {
             list.removeIf(e ->
-                    e.name == null || e.name.trim().isEmpty() ||
-                            e.diedDate == null
+                    e.name == null || e.name.trim().isEmpty() || e.diedDate == null
             );
         }
         Gson gson = new Gson();
@@ -109,8 +108,7 @@ public class UserSettings {
         if (json == null) return new ArrayList<>();
 
         Gson gson = new Gson();
-        Type type = new TypeToken<List<YahrzeitEntry>>() {
-        }.getType();
+        Type type = new TypeToken<List<YahrzeitEntry>>() { }.getType();
         List<YahrzeitEntry> list = gson.fromJson(json, type);
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.N) {
             list.removeIf(e ->

@@ -32,17 +32,9 @@ public class YahrzeitAdapter extends RecyclerView.Adapter<RecyclerView.ViewHolde
         void onEntryChanged(YahrzeitEntry entry);
     }
 
-    public YahrzeitAdapter(Context context, List<YahrzeitEntry> entries) {
+    public YahrzeitAdapter(Context context) {
         this.context = context;
-        this.entries = entries;
-
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.N) {
-            this.entries.removeIf(e ->
-                    e.name == null || e.name.trim().isEmpty() || e.diedDate == null
-            );
-        }
-
-        prefs = context.getSharedPreferences(UserSettings.PREFS, Context.MODE_PRIVATE);
+        this.prefs = context.getSharedPreferences(UserSettings.PREFS, Context.MODE_PRIVATE);
     }
 
     // ---------------------------------------------------------
@@ -266,20 +258,30 @@ public class YahrzeitAdapter extends RecyclerView.Adapter<RecyclerView.ViewHolde
         return actual;
     }
     public void setEntries() {
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.N) {
-            entries.removeIf(e ->
-                    e.name == null || e.name.trim().isEmpty() || e.diedDate == null
-            );
+        List<YahrzeitEntry> toRemove = new ArrayList<>();
+        for (YahrzeitEntry e : entries) {
+            if (e.name == null || e.name.trim().isEmpty() || e.diedDate == null) {
+                UserSettings.log("Removing calendar event for " + e.name + ": " + e.eventId);
+                toRemove.add(e);
+            }
         }
+
+        for (YahrzeitEntry e : toRemove) {
+            new EventManager(context).cancelYahrzeitEvent(e);
+        }
+
+        entries.removeAll(toRemove);
         notifyDataSetChanged();
     }
+
     public void setEntries(List<YahrzeitEntry> newEntries) {
-        entries = new ArrayList<>(newEntries);
+        entries = newEntries;
         for(YahrzeitEntry e: entries) {
             if(e.diedDate != null && !e.diedDate.toString().isEmpty())
                 if(e.inYear.getTime()/86400000L < System.currentTimeMillis()/86400000L)
                     e.inYear = HebrewUtils.nextYahrzeit(e.diedDate);
         }
+
         notifyDataSetChanged();
     }
 

@@ -91,18 +91,24 @@ public class ShabbatHelper {
         e.eventId = insertCalendarEvent(e.eventTime, e.message());
         return e.eventId;
     }
-    public static void updateCalendarEvent(Context context, EventManager.EventInfo info) {
+    public void updateCalendarEvent(EventManager.EventInfo info) {
         if (info.eventId != 0) {
             String timeZoneId = TimeZone.getDefault().getID();
-            if(timeZoneId != getEventTimezone(context, info.eventId)) {
+            if(timeZoneId != getEventTimezone(ctx, info.eventId)) {
                 ContentValues values = new ContentValues();
                 values.put(CalendarContract.Events.DTSTART, info.eventTime);
                 values.put(CalendarContract.Events.DTEND, info.eventTime + 60 * 60 * 1000);
                 values.put(CalendarContract.Events.EVENT_TIMEZONE, timeZoneId);
 
                 Uri updateUri = ContentUris.withAppendedId(CalendarContract.Events.CONTENT_URI, info.eventId);
-                context.getContentResolver().update(updateUri, values, null, null);
+                ctx.getContentResolver().update(updateUri, values, null, null);
             }
+        }
+    }
+    public void removeCalendarEvent(long eventId) {
+        if (eventId != 0) {
+            Uri deleteUri = ContentUris.withAppendedId(CalendarContract.Events.CONTENT_URI, eventId);
+            ctx.getContentResolver().delete(deleteUri, null, null);
         }
     }
     public static String getEventTimezone(Context context, long eventId) {

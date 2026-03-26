@@ -9,12 +9,14 @@ public class YahrzeitEntry {
     public Date diedDate;      // <-- store real Date
     public String hebrewDate;
     public Date inYear;
+    public long eventId;
 
     public YahrzeitEntry(String name, Date diedDate, String hebrewDate, Date inYear) {
         this.name = name;
         this.diedDate = diedDate;
         this.hebrewDate = hebrewDate;
         this.inYear = inYear;
+        this.eventId = 0;
     }
     public boolean isComplete() {
         boolean is = name != null && !name.trim().isEmpty()

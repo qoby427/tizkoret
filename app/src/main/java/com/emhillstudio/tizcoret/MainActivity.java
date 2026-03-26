@@ -61,7 +61,6 @@ public class MainActivity extends MessageActivity {
     private RecyclerView yahrzeitList;
     private YahrzeitAdapter yahrzeitAdapter;
     private String timeZoneId;
-    private List<YahrzeitEntry> list = new ArrayList<>();
     private static SharedPreferences prefs;
     private static final int RINGTONE_REQUEST_CODE = 1234;
     private static final int REQ_CALENDAR = 2001;
@@ -75,11 +74,6 @@ public class MainActivity extends MessageActivity {
     }
     private PendingAction pendingAction = PendingAction.NONE;
     private EventManager eventManager;
-    @Override
-    protected void onResume() {
-        super.onResume();
-        refreshYahrzeitList();
-    }
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -114,7 +108,14 @@ public class MainActivity extends MessageActivity {
         // -----------------------------
         yahrzeitList = findViewById(R.id.yahrzeitList);
         yahrzeitList.setLayoutManager(new LinearLayoutManager(this));
-        yahrzeitAdapter = new YahrzeitAdapter(this, list);
+
+        List<YahrzeitEntry> saved = UserSettings.loadYahrzeitList(this);
+
+        yahrzeitAdapter = new YahrzeitAdapter(this);
+        yahrzeitAdapter.setEntries(saved);
+        eventManager = new EventManager(this);
+        eventManager.setEntries(saved);
+
         yahrzeitAdapter.setOnEntryChangedListener(entry -> {
             updateCalendarButton.setEnabled(!yahrzeitAdapter.getEntries().isEmpty());
             UserSettings.saveYahrzeitList(this, yahrzeitAdapter.getEntries());
@@ -122,8 +123,6 @@ public class MainActivity extends MessageActivity {
 
         yahrzeitList.setAdapter(yahrzeitAdapter);
 
-        List<YahrzeitEntry> saved = UserSettings.loadYahrzeitList(this);
-        yahrzeitAdapter.setEntries(saved);
         findViewById(R.id.addYahrzeitButton).setOnClickListener(v -> {
             yahrzeitAdapter.addEmptyRow();
         });
@@ -212,8 +211,6 @@ public class MainActivity extends MessageActivity {
                 );
             }
         }
-
-        eventManager = new EventManager(this);
 
         if(UserSettings.isDebug())
             UserSettings.clearEvents(this);
@@ -433,21 +430,6 @@ public class MainActivity extends MessageActivity {
         // Stop the service if it's running
         Intent serviceIntent = new Intent(this, serviceClass);
         stopService(serviceIntent);
-    }
-    private void refreshYahrzeitList() {
-        List<YahrzeitEntry> list = UserSettings.loadYahrzeitList(this);
-        yahrzeitAdapter.setEntries(list);
-    }
-    private void scheduleDebugAlarm() {
-        long now = System.currentTimeMillis();
-        // Fake candle-lighting time = now + 10 seconds + 5 minutes
-        long fakeCandleTime = now + 20 * 1000;
-        try {
-            scheduleAlarm(fakeCandleTime, "Shabbat", null);
-            showMessage("Debug alarm scheduled for 2 min from now", false);
-        } catch (JSONException ex) {
-            System.out.println("MainActivity::scheduleDebugAlarm: " + ex);
-        }
     }
     private void requestLocation() {
         if (ActivityCompat.checkSelfPermission(this, Manifest.permission.ACCESS_FINE_LOCATION)
