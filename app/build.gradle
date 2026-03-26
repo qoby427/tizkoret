@@ -99,7 +99,7 @@ dependencies {
 
     implementation libs.geo
     implementation libs.work.runtime
-    implementation libs.billing.v610
+    implementation libs.billing
     implementation libs.zmanim
     implementation libs.gson
     implementation libs.material.v1130
