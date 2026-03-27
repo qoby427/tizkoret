@@ -243,25 +243,24 @@ public class YahrzeitAdapter extends RecyclerView.Adapter<RecyclerView.ViewHolde
     }
 
     public List<YahrzeitEntry> getEntries() {
-        List<YahrzeitEntry> actual = new ArrayList<>();
         boolean changed = false;
-        for (YahrzeitEntry entry : entries)
-            if(!entry.name.isEmpty() && entry.diedDate != null && !entry.diedDate.toString().isEmpty()) {
+        for (YahrzeitEntry entry : entries) {
+            if (!entry.name.isEmpty() && entry.diedDate != null && !entry.diedDate.toString().isEmpty()) {
                 if (entry.inYear.getTime() / 86400000L < System.currentTimeMillis() / 86400000L) {
                     entry.inYear = HebrewUtils.nextYahrzeit(entry.diedDate);
                     changed = true;
                 }
-                actual.add(entry);
             }
+        }
         if(changed)
             notifyDataSetChanged();
-        return actual;
+        return entries;
     }
     public void setEntries() {
         List<YahrzeitEntry> toRemove = new ArrayList<>();
         for (YahrzeitEntry e : entries) {
             if (e.name == null || e.name.trim().isEmpty() || e.diedDate == null) {
-                UserSettings.log("Removing calendar event for " + e.name + ": " + e.eventId);
+                UserSettings.log("YahrzeitAdapter::Removing calendar event for " + e.name + ": " + e.eventId);
                 toRemove.add(e);
             }
         }
@@ -271,6 +270,7 @@ public class YahrzeitAdapter extends RecyclerView.Adapter<RecyclerView.ViewHolde
         }
 
         entries.removeAll(toRemove);
+
         notifyDataSetChanged();
     }
 

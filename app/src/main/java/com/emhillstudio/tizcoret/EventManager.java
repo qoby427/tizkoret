@@ -170,21 +170,26 @@ public class EventManager {
         entries = newEntries;
     }
     public void schedule() {
+        boolean newEvent = false;
         List<EventInfo> events = new ArrayList<>();
         computeEvents(events);
 
         for (EventInfo e : events) {
             if(!UserSettings.isDebug()) {
                 long eventId = helper.insertCalendarEvent(e);
-                if (eventId != 0) {
-                    if(e.yzentry != null) {
-                        e.yzentry.eventId = eventId;
-                    }
+                if (eventId != 0 && e.yzentry != null) {
+                    e.yzentry.eventId = eventId;
+                    newEvent = true;
+
                     UserSettings.log("EventManager::schedule: added " + e.receiverClass().getSimpleName() +
                         " at " + UserSettings.getLogTime(e.eventTime) + ". Event ID=" + eventId);
                 }
             }
             AlarmUtils.scheduleMasterEvent(ctx, e, immediately);
+        }
+
+        if(newEvent) {
+            UserSettings.saveYahrzeitList(ctx, entries);
         }
     }
     private void schedule(EventInfo e) {
