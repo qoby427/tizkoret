@@ -7,6 +7,7 @@ import com.android.billingclient.api.BillingClient;
 import com.android.billingclient.api.BillingClientStateListener;
 import com.android.billingclient.api.BillingFlowParams;
 import com.android.billingclient.api.BillingResult;
+import com.android.billingclient.api.PendingPurchasesParams;
 import com.android.billingclient.api.ProductDetails;
 import com.android.billingclient.api.Purchase;
 import com.android.billingclient.api.PurchasesUpdatedListener;
@@ -37,10 +38,16 @@ public class SupportActivity extends MessageActivity implements PurchasesUpdated
         setContentView(R.layout.activity_support);
 
         // Initialize BillingClient
+        PendingPurchasesParams params =
+                PendingPurchasesParams.newBuilder()
+                        .enableOneTimeProducts()
+                        .build();
+
         billingClient = BillingClient.newBuilder(this)
-                .enablePendingPurchases()
+                .enablePendingPurchases(params)
                 .setListener(this)
                 .build();
+
 
         billingClient.startConnection(new BillingClientStateListener() {
             @Override
@@ -87,14 +94,17 @@ public class SupportActivity extends MessageActivity implements PurchasesUpdated
                         .setProductList(products)
                         .build();
 
-        billingClient.queryProductDetailsAsync(params, (billingResult, productDetailsList) -> {
-            if (billingResult.getResponseCode() == BillingClient.BillingResponseCode.OK) {
-                donationDetails.clear();
-                for (ProductDetails pd : productDetailsList) {
-                    donationDetails.put(pd.getProductId(), pd);
+        billingClient.queryProductDetailsAsync(
+                params,
+                (billingResult, productDetails) -> {
+                    if (billingResult.getResponseCode() == BillingClient.BillingResponseCode.OK) {
+                        donationDetails.clear();
+                        for (ProductDetails pd : productDetails.getProductDetailsList()) {
+                            donationDetails.put(pd.getProductId(), pd);
+                        }
+                    }
                 }
-            }
-        });
+        );
     }
 
     // Launch purchase for selected tier

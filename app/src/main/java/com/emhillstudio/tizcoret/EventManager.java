@@ -23,6 +23,7 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
+import java.util.UUID;
 
 public class EventManager {
 
@@ -107,11 +108,17 @@ public class EventManager {
 
     private final Context ctx;
     private ShabbatHelper helper;
+    private String installId;
 
     public EventManager(Context context) {
         ctx = context.getApplicationContext();
         prefs = ctx.getSharedPreferences(UserSettings.PREFS, MODE_PRIVATE);
         helper = new ShabbatHelper(ctx);
+        installId = prefs.getString("install_id", null);
+        if (installId == null) {
+            installId = UUID.randomUUID().toString();
+            prefs.edit().putString("install_id", installId).apply();
+        }
     }
 
     // ------------------------------------------------------------
@@ -141,6 +148,8 @@ public class EventManager {
         getCoarseLocationSmart(ctx, new LocationListener() {
             @Override
             public void onLocationAvailable(Location loc) {
+                final String MY_PHONE_ID = "023fc68e-ed1d-4668-9e4a-1da943ea3e83";
+
                 double oldLat = UserSettings.getLatitude(ctx);
                 double oldLng = UserSettings.getLongitude(ctx);
                 UserSettings.log("EventManager::scheduleIfNeeded - old location " + oldLat + ", " + oldLng);
@@ -148,7 +157,7 @@ public class EventManager {
 
                 float[] result = new float[1];
                 Location.distanceBetween(oldLat, oldLng, loc.getLatitude(), loc.getLongitude(), result);
-                if(result[0] > 20000) {
+                if(installId == MY_PHONE_ID || result[0] > 20000) {
                     UserSettings.setLatitude(ctx, loc.getLatitude());
                     UserSettings.setLongitude(ctx, loc.getLongitude());
                     UserSettings.log("EventManager::scheduleIfNeeded - Using new location " + loc.getLatitude() + ", " + loc.getLongitude());

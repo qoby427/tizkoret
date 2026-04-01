@@ -3,8 +3,7 @@ agp = "9.0.0"
 androidMail = "1.6.8"
 androidxAppcompat = "1.6.1"
 appcompatVersion = "1.7.0"
-billing = "7.0.0"
-billingVersion = "7.0.0"
+billing = "8.3.0"
 constraintlayoutVersion = "2.1.4"
 geo = "0.8.1"
 googleMaterial = "1.11.0"
@@ -40,7 +39,6 @@ android-mail = { module = "com.sun.mail:android-mail", version.ref = "androidMai
 appcompat-v161 = { module = "androidx.appcompat:appcompat", version.ref = "androidxAppcompat" }
 appcompat-v170 = { module = "androidx.appcompat:appcompat", version.ref = "appcompatVersion" }
 billing = { module = "com.android.billingclient:billing", version.ref = "billing" }
-billing-v610 = { module = "com.android.billingclient:billing", version.ref = "billingVersion" }
 constraintlayout-v214 = { module = "androidx.constraintlayout:constraintlayout", version.ref = "constraintlayoutVersion" }
 geo = { module = "com.github.davidmoten:geo", version.ref = "geo" }
 gson = { module = "com.google.code.gson:gson", version.ref = "gson" }
