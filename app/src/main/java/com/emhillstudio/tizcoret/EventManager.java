@@ -150,7 +150,7 @@ public class EventManager {
 
                 float[] result = new float[1];
                 Location.distanceBetween(oldLat, oldLng, loc.getLatitude(), loc.getLongitude(), result);
-                if(true || result[0] > 20000)
+                if(result[0] > 20000)
                 {
                     UserSettings.setLatitude(ctx, loc.getLatitude());
                     UserSettings.setLongitude(ctx, loc.getLongitude());
