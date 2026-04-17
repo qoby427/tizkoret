@@ -10,21 +10,14 @@ import android.content.SharedPreferences;
 import androidx.core.content.ContextCompat;
 
 public class MasterReceiver extends BroadcastReceiver {
-
     @Override
     public void onReceive(Context ctx, Intent intent) {
         SharedPreferences prefs = ctx.getSharedPreferences(UserSettings.PREFS, MODE_PRIVATE);
+        String json = prefs.getString(intent.getAction(), null);
 
-        try {
-            String json = prefs.getString(intent.getAction(), null);
+        new EventManager(ctx).scheduleIfNeeded(json);
 
-            Intent svc = new Intent(ctx, LocationService.class);
-            svc.putExtra("event_info", json);
-            ContextCompat.startForegroundService(ctx, svc);
-
-            prefs.edit().remove(intent.getAction()).apply();
-        } catch (Exception e) {
-            UserSettings.log("MasterReceiver::onReceive: " + e);
-        }
+        prefs.edit().remove(intent.getAction()).apply();
     }
 }
+

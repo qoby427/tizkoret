@@ -7,6 +7,7 @@ import android.content.SharedPreferences;
 import android.media.RingtoneManager;
 import android.net.Uri;
 import android.os.Build;
+import android.os.Debug;
 import android.util.Log;
 
 import com.google.gson.Gson;
@@ -188,20 +189,21 @@ public class UserSettings {
     private static String getTimeFormat() {
         return dateFormat == DateFormat.AMERICAN ? "h:mm a": "HH:mm";
     }
-
     public static void log(String msg) {
-        Log.d("Tizcoret Debug", msg);
-        if(isDebug()) {
-            String log = logprefs.getString("log", "");
-            logprefs.edit().putString("log", log + "\n" + msg).apply();
-        }
+        if(isConnected())
+            Log.d("Tizcoret Debug", msg);
+        else
+            LogManager.log(msg);
     }
-
-    public static boolean isDebug() {
-        return false && BuildConfig.DEBUG;
-    }
-
-    public static void setPrefs(SharedPreferences p) {
+    public static boolean isDebug() { return false && BuildConfig.DEBUG; }
+    public static boolean isConnected() { return Debug.isDebuggerConnected(); }
+    public static void setPrefs(Context ctx, SharedPreferences p) {
         logprefs = p;
+        if(!isConnected())
+            LogManager.init(ctx);
+    }
+    public static void clearLog() {
+        if(!isConnected())
+            LogManager.clearLog();
     }
 }

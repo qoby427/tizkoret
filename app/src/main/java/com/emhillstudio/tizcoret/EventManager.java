@@ -15,6 +15,7 @@ import androidx.core.app.NotificationManagerCompat;
 import com.google.android.gms.location.FusedLocationProviderClient;
 import com.google.android.gms.location.LocationServices;
 import com.google.android.gms.location.Priority;
+import com.google.android.gms.tasks.Task;
 import com.google.gson.Gson;
 
 import org.json.JSONObject;
@@ -108,17 +109,11 @@ public class EventManager {
 
     private final Context ctx;
     private ShabbatHelper helper;
-    private String installId;
 
     public EventManager(Context context) {
         ctx = context.getApplicationContext();
         prefs = ctx.getSharedPreferences(UserSettings.PREFS, MODE_PRIVATE);
         helper = new ShabbatHelper(ctx);
-        installId = prefs.getString("install_id", null);
-        if (installId == null) {
-            installId = UUID.randomUUID().toString();
-            prefs.edit().putString("install_id", installId).apply();
-        }
     }
 
     // ------------------------------------------------------------
@@ -148,8 +143,6 @@ public class EventManager {
         getCoarseLocationSmart(ctx, new LocationListener() {
             @Override
             public void onLocationAvailable(Location loc) {
-                final String MY_PHONE_ID = "023fc68e-ed1d-4668-9e4a-1da943ea3e83";
-
                 double oldLat = UserSettings.getLatitude(ctx);
                 double oldLng = UserSettings.getLongitude(ctx);
                 UserSettings.log("EventManager::scheduleIfNeeded - old location " + oldLat + ", " + oldLng);
@@ -157,7 +150,8 @@ public class EventManager {
 
                 float[] result = new float[1];
                 Location.distanceBetween(oldLat, oldLng, loc.getLatitude(), loc.getLongitude(), result);
-                if(installId == MY_PHONE_ID || result[0] > 20000) {
+                if(true || result[0] > 20000)
+                {
                     UserSettings.setLatitude(ctx, loc.getLatitude());
                     UserSettings.setLongitude(ctx, loc.getLongitude());
                     UserSettings.log("EventManager::scheduleIfNeeded - Using new location " + loc.getLatitude() + ", " + loc.getLongitude());
@@ -398,29 +392,32 @@ public class EventManager {
         FusedLocationProviderClient fused =
                 LocationServices.getFusedLocationProviderClient(ctx);
 
-        // Try foreground-only API first (works only when app is active)
-        fused.getCurrentLocation(
-                Priority.PRIORITY_BALANCED_POWER_ACCURACY,
-                null
-        ).addOnSuccessListener(loc -> {
-            if (loc != null) {
-                listener.onLocationAvailable(loc);
-            } else {
-                // Fallback for receivers / background
-                fused.getLastLocation().addOnSuccessListener(last -> {
-                    if (last != null) {
-                        listener.onLocationAvailable(last);
-                    } else {
-                        Location passive = PassiveLocationStore.get();
-                        if (passive != null)
-                            listener.onLocationAvailable(passive);
-                        else
-                            listener.onLocationUnavailable();
-                    }
-                });
+        // 1. Try cached fused location (allowed everywhere)
+        fused.getLastLocation().addOnSuccessListener(last -> {
+            if (last != null) {
+                listener.onLocationAvailable(last);
+                return;
             }
+
+            // 2. Try passive location (your new primary source)
+            Location passive = PassiveLocationStore.get();
+            if (passive != null) {
+                listener.onLocationAvailable(passive);
+                return;
+            }
+
+            // 3. No location available
+            listener.onLocationUnavailable();
+        }).addOnFailureListener(e -> {
+            // Failure retrieving last location
+            Location passive = PassiveLocationStore.get();
+            if (passive != null)
+                listener.onLocationAvailable(passive);
+            else
+                listener.onLocationUnavailable();
         });
     }
+
     @SuppressLint("MissingPermission")
     private void sendLocationChangedNotification(Location newLoc) {
         String loc = resolveLocationName(newLoc);
