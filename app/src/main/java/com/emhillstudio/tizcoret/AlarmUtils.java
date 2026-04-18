@@ -55,8 +55,6 @@ public class AlarmUtils {
                 pi
         );
 
-        UserSettings.log("AlarmUtils:: MasterEvent set at " + UserSettings.getLogTime(trigger));
-
         new ShabbatHelper(context).updateCalendarEvent(info);
 
         UserSettings.log("AlarmUtils::scheduleMasterEvent for " + info.receiverClass().getSimpleName() +

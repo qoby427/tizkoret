@@ -46,10 +46,6 @@
             android:name=".YahrzeitAlarmService"
             android:exported="false"
             android:foregroundServiceType="mediaPlayback" />
-        <service
-            android:name=".LocationService"
-            android:exported="false"
-            android:foregroundServiceType="location" />
 
         <receiver
             android:name=".MasterReceiver"
