@@ -1,6 +1,7 @@
 package com.emhillstudio.tizcoret;
 
 import android.content.Context;
+import android.util.Log;
 
 import java.io.File;
 import java.io.FileOutputStream;
@@ -22,7 +23,7 @@ public class LogManager {
             fos.write(line.getBytes());
             fos.close();
         } catch (Exception e) {
-            UserSettings.log("LogManager::log: " + e.toString());
+            Log.e("Tizcoret Debug", "LogManager::log: " + e.toString());
         }
     }
     public static void clearLog() {

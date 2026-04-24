@@ -4,7 +4,6 @@ import android.app.Notification;
 import android.app.PendingIntent;
 import android.app.Service;
 import android.content.Intent;
-import android.content.SharedPreferences;
 import android.media.AudioManager;
 import android.media.MediaPlayer;
 import android.media.RingtoneManager;
@@ -23,8 +22,6 @@ public class AlarmService extends Service {
 
     @Override
     public int onStartCommand(Intent intent, int flags, int startId) {
-        SharedPreferences prefs = getSharedPreferences(UserSettings.PREFS, MODE_PRIVATE);
-
         if (intent == null || intent.getAction() == null) {
             // System restart, keep ringing
             return START_STICKY;
@@ -63,7 +60,6 @@ public class AlarmService extends Service {
     // RINGTONE SELECTION
     // -----------------------------
     private Uri getAlarmTone(String event) {
-        SharedPreferences prefs = getSharedPreferences(UserSettings.PREFS, MODE_PRIVATE);
         Uri saved = event.equals("Shabbat") ?
                 UserSettings.getShabbatRingtone(this) :
                 UserSettings.getYahrzeitRingtone(this);

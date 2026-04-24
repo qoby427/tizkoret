@@ -28,6 +28,13 @@ public abstract class AlarmReceiver extends BroadcastReceiver {
         prefs = context.getSharedPreferences(UserSettings.PREFS, MODE_PRIVATE);
 
         try {
+            UserSettings.log("AlarmReceiver fired at " + UserSettings.getLogTime(System.currentTimeMillis()));
+        } catch (Exception e) {
+            UserSettings.log("AlarmReceiver write to log failed at " +
+                UserSettings.getLogTime(System.currentTimeMillis()) +": " + e);
+        }
+
+        try {
             String json = prefs.getString(intent.getAction(), null);
             if (json == null) return;
 

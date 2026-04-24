@@ -189,21 +189,18 @@ public class UserSettings {
     private static String getTimeFormat() {
         return dateFormat == DateFormat.AMERICAN ? "h:mm a": "HH:mm";
     }
+
     public static void log(String msg) {
-        if(isConnected())
-            Log.d("Tizcoret Debug", msg);
-        else
-            LogManager.log(msg);
+        Log.d("Tizcoret Debug", msg);
+        LogManager.log(msg);
     }
     public static boolean isDebug() { return false && BuildConfig.DEBUG; }
     public static boolean isConnected() { return Debug.isDebuggerConnected(); }
     public static void setPrefs(Context ctx, SharedPreferences p) {
         logprefs = p;
-        if(!isConnected())
-            LogManager.init(ctx);
+        LogManager.init(ctx);
     }
     public static void clearLog() {
-        if(!isConnected())
-            LogManager.clearLog();
+        LogManager.clearLog();
     }
 }
