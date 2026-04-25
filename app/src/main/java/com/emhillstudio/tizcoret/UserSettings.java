@@ -198,9 +198,8 @@ public class UserSettings {
     public static boolean isConnected() { return Debug.isDebuggerConnected(); }
     public static void setPrefs(Context ctx, SharedPreferences p) {
         logprefs = p;
-        LogManager.init(ctx);
     }
     public static void clearLog() {
-        LogManager.clearLog();
+        //LogManager.clearLog();
     }
 }

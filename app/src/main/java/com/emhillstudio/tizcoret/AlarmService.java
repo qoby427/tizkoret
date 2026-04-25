@@ -49,7 +49,9 @@ public class AlarmService extends Service {
                 mediaPlayer.stop();
                 mediaPlayer.release();
             }
-        } catch (Exception ignored) {}
+        } catch (Exception e) {
+            UserSettings.log("AlarmService::stopAlarm: " + e);
+        }
 
         mediaPlayer = null;
 
@@ -163,7 +165,7 @@ public class AlarmService extends Service {
         super.onDestroy();
         stopAlarm();
 
-        new EventManager(this).scheduleIfNeeded();
+        EventManager.getInstance().scheduleIfNeeded();
     }
 
     @Override

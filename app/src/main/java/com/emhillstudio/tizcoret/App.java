@@ -21,6 +21,9 @@ public class App extends Application {
         super.onCreate();
         createNotificationChannels();
 
+        LogManager.init(this);
+        EventManager.init(this);
+
         LocationRequest req = new LocationRequest.Builder(0)
             .setPriority(Priority.PRIORITY_PASSIVE)
             .setMinUpdateIntervalMillis(0)

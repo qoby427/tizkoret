@@ -266,7 +266,7 @@ public class YahrzeitAdapter extends RecyclerView.Adapter<RecyclerView.ViewHolde
         }
 
         for (YahrzeitEntry e : toRemove) {
-            new EventManager(context).cancelYahrzeitEvent(e);
+            EventManager.getInstance().cancelYahrzeitEvent(e);
         }
 
         entries.removeAll(toRemove);

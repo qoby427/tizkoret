@@ -118,7 +118,7 @@ public class MainActivity extends MessageActivity {
 
         yahrzeitAdapter = new YahrzeitAdapter(this);
         yahrzeitAdapter.setEntries(saved);
-        eventManager = new EventManager(this);
+        eventManager = EventManager.getInstance();
         eventManager.setEntries(saved);
 
         yahrzeitAdapter.setOnEntryChangedListener(entry -> {
@@ -255,6 +255,7 @@ public class MainActivity extends MessageActivity {
     private void updateCalendar() {
         String err = "Calendar updated";
         UserSettings.saveYahrzeitList(this, yahrzeitAdapter.getEntries());
+        eventManager.setEntries(yahrzeitAdapter.getEntries());
         eventManager.scheduleImmediately();
 
         showMessage(err, true);

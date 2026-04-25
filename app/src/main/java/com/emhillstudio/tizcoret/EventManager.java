@@ -106,16 +106,34 @@ public class EventManager {
     // ------------------------------------------------------------
     // INSTANCE STATE
     // ------------------------------------------------------------
-
+    private static volatile EventManager instance;
     private final Context ctx;
     private ShabbatHelper helper;
 
-    public EventManager(Context context) {
+
+    private EventManager(Context context) {
         ctx = context.getApplicationContext();
         prefs = ctx.getSharedPreferences(UserSettings.PREFS, MODE_PRIVATE);
         helper = new ShabbatHelper(ctx);
     }
-
+    // First-time initialization
+    public static void init(Context context) {
+        if (instance == null) {
+            synchronized (EventManager.class) {
+                if (instance == null) {
+                    instance = new EventManager(context);
+                }
+            }
+        }
+    }
+    public static EventManager getInstance() {
+        if (instance == null) {
+            throw new IllegalStateException(
+                    "EventManager.init(context) must be called before getInstance()"
+            );
+        }
+        return instance;
+    }
     // ------------------------------------------------------------
     // PUBLIC API
     // ------------------------------------------------------------
