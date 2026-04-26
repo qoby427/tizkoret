@@ -72,7 +72,6 @@ public class MainActivity extends MessageActivity {
         ADD_SHABBAT_EVENTS,
     }
     private PendingAction pendingAction = PendingAction.NONE;
-    private EventManager eventManager;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -114,12 +113,8 @@ public class MainActivity extends MessageActivity {
         yahrzeitList = findViewById(R.id.yahrzeitList);
         yahrzeitList.setLayoutManager(new LinearLayoutManager(this));
 
-        List<YahrzeitEntry> saved = UserSettings.loadYahrzeitList(this);
-
         yahrzeitAdapter = new YahrzeitAdapter(this);
-        yahrzeitAdapter.setEntries(saved);
-        eventManager = EventManager.getInstance();
-        eventManager.setEntries(saved);
+        yahrzeitAdapter.setEntries(UserSettings.loadYahrzeitList(this));
 
         yahrzeitAdapter.setOnEntryChangedListener(entry -> {
             updateCalendarButton.setEnabled(!yahrzeitAdapter.getEntries().isEmpty());
@@ -133,7 +128,7 @@ public class MainActivity extends MessageActivity {
         });
         findViewById(R.id.cancelYahrzeitButton).setVisibility(INVISIBLE);
         findViewById(R.id.cancelYahrzeitButton).setOnClickListener(v -> {
-            eventManager.cancelAllYahrzeitEvents();
+            EventManager.getInstance().cancelAllYahrzeitEvents();
         });
 
         if (!prefs.contains("date_format")) {
@@ -146,8 +141,10 @@ public class MainActivity extends MessageActivity {
             yahrzeitAdapter.setEntries();
             if (hasLocationPermission() && hasCalendarPermission()) {
                 updateCalendar();
+                /*
                 if(UserSettings.isShabbatAlarmEnabled(this))
-                    eventManager.scheduleImmediately();
+                    EventManager.getInstance().scheduleImmediately();
+                */
                 return;
             }
 
@@ -253,12 +250,11 @@ public class MainActivity extends MessageActivity {
                 == PackageManager.PERMISSION_GRANTED;
     }
     private void updateCalendar() {
-        String err = "Calendar updated";
         UserSettings.saveYahrzeitList(this, yahrzeitAdapter.getEntries());
-        eventManager.setEntries(yahrzeitAdapter.getEntries());
-        eventManager.scheduleImmediately();
+        EventManager.getInstance().setEntries(yahrzeitAdapter.getEntries());
+        EventManager.getInstance().scheduleImmediately();
 
-        showMessage(err, true);
+        showMessage("Calendar updated", true);
     }
     private boolean setCalendarPerms() {
         if (ActivityCompat.checkSelfPermission(this, Manifest.permission.WRITE_CALENDAR)
@@ -299,11 +295,11 @@ public class MainActivity extends MessageActivity {
         if (requestCode == REQ_CALENDAR) {
             if (granted) {
                 if (pendingAction == PendingAction.ADD_SHABBAT_EVENTS) {
-                    eventManager.scheduleImmediately();
+                    EventManager.getInstance().scheduleImmediately();
                 } else if (pendingAction == PendingAction.UPDATE_CALENDAR) {
                     updateCalendar();
                     if(UserSettings.isShabbatAlarmEnabled(this))
-                        eventManager.scheduleImmediately();
+                        EventManager.getInstance().scheduleImmediately();
                 }
             }
 
@@ -337,7 +333,7 @@ public class MainActivity extends MessageActivity {
 
                         pendingAction = PendingAction.ADD_SHABBAT_EVENTS;
                         if (hasLocationPermission() && hasCalendarPermission()) {
-                            eventManager.scheduleImmediately();
+                            EventManager.getInstance().scheduleImmediately();
                             return;
                         }
 
@@ -355,7 +351,7 @@ public class MainActivity extends MessageActivity {
                                 ShabbatAlarmReceiver.class,
                                 AlarmService.class
                         );
-                        eventManager.cancelAll();
+                        EventManager.getInstance().cancelAll();
                         UserSettings.clearLog();
                     });
         }
@@ -463,11 +459,11 @@ public class MainActivity extends MessageActivity {
                 // NOW continue the Shabbat flow
                 if (setCalendarPerms()) {
                     if (pendingAction == PendingAction.ADD_SHABBAT_EVENTS) {
-                        eventManager.scheduleImmediately();
+                        EventManager.getInstance().scheduleImmediately();
                     } else if (pendingAction == PendingAction.UPDATE_CALENDAR) {
                         updateCalendar();
                         if(UserSettings.isShabbatAlarmEnabled(MainActivity.this))
-                            eventManager.scheduleImmediately();
+                            EventManager.getInstance().scheduleImmediately();
                     }
                 }
             }

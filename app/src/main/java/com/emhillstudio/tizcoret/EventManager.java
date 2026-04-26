@@ -14,17 +14,15 @@ import androidx.core.app.NotificationManagerCompat;
 
 import com.google.android.gms.location.FusedLocationProviderClient;
 import com.google.android.gms.location.LocationServices;
-import com.google.android.gms.location.Priority;
-import com.google.android.gms.tasks.Task;
 import com.google.gson.Gson;
 
 import org.json.JSONObject;
 
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
-import java.util.UUID;
 
 public class EventManager {
 
@@ -41,7 +39,7 @@ public class EventManager {
     public static SharedPreferences getPrefs() {
         return prefs;
     }
-    interface LocationListener {
+    public interface LocationListener {
         void onLocationAvailable(Location loc);
         void onLocationUnavailable();
     }
@@ -106,31 +104,28 @@ public class EventManager {
     // ------------------------------------------------------------
     // INSTANCE STATE
     // ------------------------------------------------------------
-    private static volatile EventManager instance;
+    private static EventManager instance;
     private final Context ctx;
-    private ShabbatHelper helper;
+    private final ShabbatHelper helper;
 
 
     private EventManager(Context context) {
         ctx = context.getApplicationContext();
         prefs = ctx.getSharedPreferences(UserSettings.PREFS, MODE_PRIVATE);
         helper = new ShabbatHelper(ctx);
+
+        List<YahrzeitEntry> saved = UserSettings.loadYahrzeitList(ctx);
+        setEntries(saved);
     }
     // First-time initialization
     public static void init(Context context) {
         if (instance == null) {
-            synchronized (EventManager.class) {
-                if (instance == null) {
-                    instance = new EventManager(context);
-                }
-            }
+            instance = new EventManager(context);
         }
     }
     public static EventManager getInstance() {
         if (instance == null) {
-            throw new IllegalStateException(
-                    "EventManager.init(context) must be called before getInstance()"
-            );
+            throw new IllegalStateException("EventManager.init(context) not called");
         }
         return instance;
     }
@@ -188,7 +183,31 @@ public class EventManager {
         });
     }
     public void setEntries(List<YahrzeitEntry> newEntries) {
+        //if(entries != null)  syncYahrzeitLists(entries, newEntries);
         entries = newEntries;
+    }
+    public void syncYahrzeitLists(List<YahrzeitEntry> oldList, List<YahrzeitEntry> newList) {
+        // Build lookup maps for fast comparison
+        Map<String, YahrzeitEntry> oldMap = new HashMap<>();
+        for (YahrzeitEntry e : oldList) {
+            String key = e.name + "|" + e.diedDate.toString();
+            oldMap.put(key, e);
+        }
+
+        Map<String, YahrzeitEntry> newMap = new HashMap<>();
+        for (YahrzeitEntry e : newList) {
+            String key = e.name + "|" + e.diedDate.toString();
+            newMap.put(key, e);
+        }
+
+        for (String key : oldMap.keySet()) {
+            if (!newMap.containsKey(key)) {
+                YahrzeitEntry oldEntry = oldMap.get(key);
+                if (oldEntry != null && oldEntry.eventId != 0) {
+                    helper.removeCalendarEvent(oldEntry.eventId);
+                }
+            }
+        }
     }
     public void schedule() {
         boolean newEvent = false;
@@ -198,6 +217,9 @@ public class EventManager {
         for (EventInfo e : events) {
             if(!UserSettings.isDebug()) {
                 long eventId = helper.insertCalendarEvent(e);
+                if(eventId == -1) {
+                    eventId = helper.updateCalendarEvent(e);
+                }
                 if (eventId != 0 && e.yzentry != null) {
                     e.yzentry.eventId = eventId;
                     newEvent = true;
@@ -274,12 +296,11 @@ public class EventManager {
     // ------------------------------------------------------------
     // GENERIC EVENT COMPUTATION
     // ------------------------------------------------------------
-    private List<EventInfo> computeEvents(List<EventInfo> list) {
+    private void computeEvents(List<EventInfo> list) {
         buildShabbatEvent(list);
         buildYahrzeitEvents(list);
-        return list;
     }
-    private boolean buildShabbatEvent(List<EventInfo> list) {
+    private void buildShabbatEvent(List<EventInfo> list) {
         long candleTime = new ShabbatHelper(ctx).computeNextCandleLighting();
 
         UserSettings.log("EventManager::computeEvents: next candle time " + UserSettings.getLogTime(candleTime));
@@ -296,10 +317,7 @@ public class EventManager {
                     candleTime,
                     buildShabbatMessage(candleTime)
             ));
-            return true;
         }
-
-        return false;
     }
     private void buildYahrzeitEvents(List<EventInfo> ret) {
         for (YahrzeitEntry entry : entries) {
@@ -335,7 +353,8 @@ public class EventManager {
     }
     private EventInfo buildEvent(int type, long eventTime, YahrzeitEntry entry) {
         EventInfo e = buildEvent(type, eventTime, entry.name);
-        e.yzentry = entry;
+        if(e != null)
+            e.yzentry = entry;
         return  e;
     }
     private EventInfo buildEvent(int type, long eventTime, String name) {
@@ -403,6 +422,7 @@ public class EventManager {
             obj.put("event_type", "alarm");
             e.final5.payloadJson =  obj.toString();
         } catch (Exception ex) {
+            UserSettings.log("EventManager::buildPayloadJson: " + ex);
         }
     }
     @SuppressLint("MissingPermission")

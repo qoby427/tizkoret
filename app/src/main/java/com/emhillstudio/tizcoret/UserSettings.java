@@ -177,8 +177,11 @@ public class UserSettings {
         return sdf.format(new Date(millis));
     }
     public static String getLogTime(long millis) {
+        return getDateTime(millis);
+        /*
         SimpleDateFormat sdf = new SimpleDateFormat(getDateFormat() + " " + getTimeFormat(), Locale.getDefault());
         return sdf.format(new Date(millis));
+        */
     }
     public static void setDateFormat(boolean american) {
         dateFormat = american ? DateFormat.AMERICAN : DateFormat.EUROPEAN;
@@ -200,6 +203,6 @@ public class UserSettings {
         logprefs = p;
     }
     public static void clearLog() {
-        //LogManager.clearLog();
+        LogManager.clearLog();
     }
 }

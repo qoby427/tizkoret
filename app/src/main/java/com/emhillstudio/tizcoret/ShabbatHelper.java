@@ -8,27 +8,23 @@ import android.content.ContentValues;
 
 import android.content.Context;
 import android.content.SharedPreferences;
-import android.database.ContentObserver;
 import android.database.Cursor;
 import android.net.Uri;
-import android.os.Handler;
-import android.os.Looper;
 import android.provider.CalendarContract;
-
-import androidx.annotation.Nullable;
 
 import java.text.SimpleDateFormat;
 import java.util.Locale;
 import java.util.TimeZone;
-import java.util.concurrent.atomic.AtomicBoolean;
-import java.util.concurrent.atomic.AtomicLong;
 
 public class ShabbatHelper {
     private final Context ctx;
     private final ContentResolver cr;
+    private final long calendarId;
+
     public ShabbatHelper(Context c) {
         ctx = c.getApplicationContext();
         cr = ctx.getContentResolver();
+        calendarId = getGoogleCalendarId();
     }
     public long computeNextCandleLighting() {
         SharedPreferences prefs = ctx.getSharedPreferences(UserSettings.PREFS, MODE_PRIVATE);
@@ -48,21 +44,14 @@ public class ShabbatHelper {
             candleTime = HebrewUtils.computeNextCandleLighting(ctx);
         return candleTime;
     }
-    public long insertCalendarEvent(long candleLighting, String header) {
-        long calendarId = getGoogleCalendarId();
-        if (calendarId == -1)
-            return 0;
+    public long insertCalendarEvent(EventManager.EventInfo e) {
+        long status = eventAlreadyExists(e);
+        if (status != 0)
+            return status;
 
-        // Format time for title
-        String formatted = new SimpleDateFormat("h:mm a", Locale.getDefault())
-                .format(candleLighting);
+        String formatted = new SimpleDateFormat("h:mm a", Locale.getDefault()).format(e.eventTime);
+        String title = e.message() + "Candle Lighting – " + formatted;
 
-        String title = header + "Candle Lighting – " + formatted;
-
-        if (eventAlreadyExists(calendarId, candleLighting, title))
-            return 0;
-
-        // 1. Insert event into EVENTS table
         ContentValues event = new ContentValues();
         String timeZoneId = TimeZone.getDefault().getID();
 
@@ -70,47 +59,147 @@ public class ShabbatHelper {
         event.put(CalendarContract.Events.CALENDAR_ID, calendarId);
         event.put(CalendarContract.Events.EVENT_TIMEZONE, timeZoneId);
         event.put(CalendarContract.Events.EVENT_END_TIMEZONE, timeZoneId);
-        event.put(CalendarContract.Events.DTSTART, candleLighting);
-        event.put(CalendarContract.Events.DTEND, candleLighting + 60 * 60 * 1000);
+        event.put(CalendarContract.Events.DTSTART, e.eventTime);
+        event.put(CalendarContract.Events.DTEND, e.eventTime + 60 * 60 * 1000);
 
         long eventId = 0;
         Uri eventUri = cr.insert(CalendarContract.Events.CONTENT_URI, event);
         if (eventUri != null) {
             eventId = Long.parseLong(eventUri.getLastPathSegment());
-            
+
             ContentValues values = new ContentValues();
             values.put(CalendarContract.Reminders.EVENT_ID, eventId);
             values.put(CalendarContract.Reminders.MINUTES, 0);
             values.put(CalendarContract.Reminders.METHOD, CalendarContract.Reminders.METHOD_EMAIL);
 
             cr.insert(CalendarContract.Reminders.CONTENT_URI, values);
+            UserSettings.log("ShabbatHelper::insertCalendarEvent: " + " eventId " + eventId + " " +
+                UserSettings.getLogTime(e.eventTime));
         }
         return eventId;
     }
-    public long insertCalendarEvent(EventManager.EventInfo e) {
-        e.eventId = insertCalendarEvent(e.eventTime, e.message());
-        return e.eventId;
-    }
-    public void updateCalendarEvent(EventManager.EventInfo info) {
+    public long updateCalendarEvent(EventManager.EventInfo info) {
         if (info.eventId != 0) {
-            String timeZoneId = TimeZone.getDefault().getID();
-            if(timeZoneId != getEventTimezone(ctx, info.eventId)) {
-                ContentValues values = new ContentValues();
-                values.put(CalendarContract.Events.DTSTART, info.eventTime);
-                values.put(CalendarContract.Events.DTEND, info.eventTime + 60 * 60 * 1000);
-                values.put(CalendarContract.Events.EVENT_TIMEZONE, timeZoneId);
+            if (eventAlreadyExists(info) != -1)
+                return info.eventId;
 
-                Uri updateUri = ContentUris.withAppendedId(CalendarContract.Events.CONTENT_URI, info.eventId);
-                ctx.getContentResolver().update(updateUri, values, null, null);
+            String formatted = new SimpleDateFormat("h:mm a", Locale.getDefault()).format(info.eventTime);
+            String title = info.message() + "Candle Lighting – " + formatted;
+
+            String timeZoneId = TimeZone.getDefault().getID();
+            ContentValues values = new ContentValues();
+            values.put(CalendarContract.Events.DTSTART, info.eventTime);
+            values.put(CalendarContract.Events.DTEND, info.eventTime + 60 * 60 * 1000);
+            values.put(CalendarContract.Events.EVENT_TIMEZONE, timeZoneId);
+
+            Uri updateUri = ContentUris.withAppendedId(CalendarContract.Events.CONTENT_URI, info.eventId);
+            ctx.getContentResolver().update(updateUri, values, null, null);
+
+            UserSettings.log("ShabbatHelper::updateCalendarEvent: " + " eventId " + info.eventId + " " +
+                    UserSettings.getLogTime(info.eventTime));
+
+            // Detect duplicate event created by Google Calendar
+            long newId = findDuplicateEvent(info);
+
+            if (newId != 0) {
+                removeCalendarEvent(info.eventId);
+                info.eventId = newId;
             }
         }
+        return info.eventId;
     }
     public void removeCalendarEvent(long eventId) {
-        if (eventId != 0) {
-            Uri deleteUri = ContentUris.withAppendedId(CalendarContract.Events.CONTENT_URI, eventId);
-            ctx.getContentResolver().delete(deleteUri, null, null);
+        if (eventId == 0) return;
+
+        Uri eventUri = ContentUris.withAppendedId(
+                CalendarContract.Events.CONTENT_URI,
+                eventId
+        );
+
+        // Query current event times
+        Cursor c = ctx.getContentResolver().query(
+                eventUri,
+                new String[]{
+                        CalendarContract.Events.DTSTART,
+                        CalendarContract.Events.DTEND
+                },
+                null, null, null
+        );
+
+        if (c == null || !c.moveToFirst()) {
+            if (c != null) c.close();
+            return; // event doesn't exist
         }
+
+        long dtStart = c.getLong(0);
+        long dtEnd   = c.getLong(1);
+        c.close();
+
+        // Move 2 years into the past
+        long oneYear = 365L * 2 * 24 * 60 * 60 * 1000;
+        long newStart = dtStart - oneYear;
+        long newEnd   = dtEnd   - oneYear;
+
+        ContentValues values = new ContentValues();
+        values.put(CalendarContract.Events.DTSTART, newStart);
+        values.put(CalendarContract.Events.DTEND, newEnd);
+
+        ctx.getContentResolver().update(eventUri, values, null, null);
+
+        UserSettings.log("ShabbatHelper::removeCalendarEvent " + eventId + " " +
+                UserSettings.getLogTime(newStart));
     }
+    private long findDuplicateEvent(EventManager.EventInfo info) {
+        // First get the calendar ID of the original event
+        Uri originalUri = ContentUris.withAppendedId(CalendarContract.Events.CONTENT_URI, info.eventId);
+
+        Cursor c = ctx.getContentResolver().query(
+                originalUri,
+                new String[]{ CalendarContract.Events.CALENDAR_ID, CalendarContract.Events.TITLE },
+                null, null, null
+        );
+
+        if (c == null || !c.moveToFirst()) {
+            if (c != null) c.close();
+            return 0;
+        }
+
+        long calId = c.getLong(0);
+        String title = c.getString(1);
+        c.close();
+
+        // Now search for events with same title + same DTSTART in same calendar
+        Cursor dup = ctx.getContentResolver().query(
+                CalendarContract.Events.CONTENT_URI,
+                new String[]{ CalendarContract.Events._ID },
+                CalendarContract.Events.CALENDAR_ID + "=? AND " +
+                        CalendarContract.Events.TITLE + "=? AND " +
+                        CalendarContract.Events.DTSTART + "=?",
+                new String[]{ String.valueOf(calId), title, String.valueOf(info.eventTime) },
+                null
+        );
+
+        if (dup == null) return 0;
+
+        long foundId = 0;
+
+        if (dup.moveToFirst()) {
+            do {
+                long id = dup.getLong(0);
+
+                if (id != info.eventId) {
+                    foundId = id;
+                    break;
+                }
+
+            } while (dup.moveToNext());
+        }
+
+
+        dup.close();
+        return foundId;
+    }
+
     public static String getEventTimezone(Context context, long eventId) {
         Uri uri = ContentUris.withAppendedId(CalendarContract.Events.CONTENT_URI, eventId);
 
@@ -127,14 +216,12 @@ public class ShabbatHelper {
         );
 
         if (cursor != null) {
-            try {
+            try (cursor) {
                 if (cursor.moveToFirst()) {
                     return cursor.getString(
                             cursor.getColumnIndexOrThrow(CalendarContract.Events.EVENT_TIMEZONE)
                     );
                 }
-            } finally {
-                cursor.close();
             }
         }
 
@@ -206,34 +293,66 @@ public class ShabbatHelper {
         cur.close();
         return bestId;
     }
-    private boolean eventAlreadyExists(long calendarId, long startUtc, String title) {
-        long minuteStart = (startUtc / 60000L) * 60000L;
-        long minuteEnd = minuteStart + 59999L;
+    private String extractBaseTitle(String fullTitle) {
+        final String PREFIX = "Candle Lighting – ";
+        int idx = fullTitle.indexOf(PREFIX);
+        if (idx == -1) return fullTitle; // fallback
+        return fullTitle.substring(0, idx + PREFIX.length());
+    }
+
+    public long eventAlreadyExists(EventManager.EventInfo e) {
+        String formatted = new SimpleDateFormat("h:mm a", Locale.getDefault()).format(e.eventTime);
+        String title = e.message().equals("") ?
+                "Candle Lighting – " + formatted :
+                e.message() + "Candle Lighting – ";
 
         String selection =
                 CalendarContract.Events.CALENDAR_ID + "=? AND " +
-                CalendarContract.Events.TITLE + "=? AND " +
-                        CalendarContract.Events.DTSTART + ">=? AND " +
-                        CalendarContract.Events.DTSTART + "<=?";
+                        CalendarContract.Events.TITLE + " LIKE ? AND " +
+                        CalendarContract.Events.DTSTART + " >= ? ";
 
         String[] selectionArgs = new String[]{
                 Long.toString(calendarId),
-                title,
-                Long.toString(minuteStart),
-                Long.toString(minuteEnd)
+                title + "%",
+                Long.toString(System.currentTimeMillis())
         };
 
         Cursor cur = cr.query(
                 CalendarContract.Events.CONTENT_URI,
-                new String[]{CalendarContract.Events._ID},
+                new String[]{
+                        CalendarContract.Events._ID,
+                        CalendarContract.Events.DTSTART
+                },
                 selection,
                 selectionArgs,
                 null
         );
 
-        boolean exists = (cur != null && cur.moveToFirst());
-        if (cur != null) cur.close();
+        if (cur == null)
+            return 0;
 
-        return exists;
+        long result = 0;
+
+        if (cur.moveToFirst()) {
+            long eventId = cur.getLong(0);
+            long existingStart = cur.getLong(1);
+
+            long minuteStart = (e.eventTime / 60000L) * 60000L;
+            long minuteEnd = minuteStart + 59999L;
+
+            boolean sameMinute = (existingStart >= minuteStart && existingStart <= minuteEnd);
+
+            if (existingStart == (e.eventTime/1000)*1000) {
+                // Same title, same time → skip creation
+                result = eventId;
+            } else {
+                // Same title, different time → update needed
+                e.eventId = eventId;
+                result = -1;
+            }
+        }
+
+        cur.close();
+        return result;
     }
 }
