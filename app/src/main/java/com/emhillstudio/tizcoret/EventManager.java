@@ -183,31 +183,7 @@ public class EventManager {
         });
     }
     public void setEntries(List<YahrzeitEntry> newEntries) {
-        //if(entries != null)  syncYahrzeitLists(entries, newEntries);
         entries = newEntries;
-    }
-    public void syncYahrzeitLists(List<YahrzeitEntry> oldList, List<YahrzeitEntry> newList) {
-        // Build lookup maps for fast comparison
-        Map<String, YahrzeitEntry> oldMap = new HashMap<>();
-        for (YahrzeitEntry e : oldList) {
-            String key = e.name + "|" + e.diedDate.toString();
-            oldMap.put(key, e);
-        }
-
-        Map<String, YahrzeitEntry> newMap = new HashMap<>();
-        for (YahrzeitEntry e : newList) {
-            String key = e.name + "|" + e.diedDate.toString();
-            newMap.put(key, e);
-        }
-
-        for (String key : oldMap.keySet()) {
-            if (!newMap.containsKey(key)) {
-                YahrzeitEntry oldEntry = oldMap.get(key);
-                if (oldEntry != null && oldEntry.eventId != 0) {
-                    helper.removeCalendarEvent(oldEntry.eventId);
-                }
-            }
-        }
     }
     public void schedule() {
         boolean newEvent = false;

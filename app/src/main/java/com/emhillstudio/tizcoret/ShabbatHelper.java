@@ -328,31 +328,25 @@ public class ShabbatHelper {
                 null
         );
 
-        if (cur == null)
-            return 0;
-
         long result = 0;
 
-        if (cur.moveToFirst()) {
-            long eventId = cur.getLong(0);
-            long existingStart = cur.getLong(1);
+        if (cur != null) {
+            if (cur.moveToFirst()) {
+                long eventId = cur.getLong(0);
+                long existingStart = cur.getLong(1);
 
-            long minuteStart = (e.eventTime / 60000L) * 60000L;
-            long minuteEnd = minuteStart + 59999L;
-
-            boolean sameMinute = (existingStart >= minuteStart && existingStart <= minuteEnd);
-
-            if (existingStart == (e.eventTime/1000)*1000) {
-                // Same title, same time → skip creation
-                result = eventId;
-            } else {
-                // Same title, different time → update needed
-                e.eventId = eventId;
-                result = -1;
+                if (existingStart == (e.eventTime / 1000) * 1000) {
+                    // Same title, same time → skip creation
+                    result = eventId;
+                } else {
+                    // Same title, different time → update needed
+                    e.eventId = eventId;
+                    result = -1;
+                }
             }
-        }
 
-        cur.close();
+            cur.close();
+        }
         return result;
     }
 }
