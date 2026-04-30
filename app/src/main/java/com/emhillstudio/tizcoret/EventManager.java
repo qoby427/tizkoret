@@ -191,16 +191,18 @@ public class EventManager {
         computeEvents(events);
 
         for (EventInfo e : events) {
+            String action = "added";
             if(!UserSettings.isDebug()) {
                 long eventId = helper.insertCalendarEvent(e);
                 if(eventId == -1) {
+                    action = "modified";
                     eventId = helper.updateCalendarEvent(e);
                 }
-                if (eventId != 0 && e.yzentry != null) {
+                if (eventId > 0 && e.yzentry != null) {
                     e.yzentry.eventId = eventId;
                     newEvent = true;
 
-                    UserSettings.log("EventManager::schedule: added " + e.receiverClass().getSimpleName() +
+                    UserSettings.log("EventManager::schedule: " + action + " " + e.receiverClass().getSimpleName() +
                         " at " + UserSettings.getLogTime(e.eventTime) + ". Event ID=" + eventId);
                 }
             }
