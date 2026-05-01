@@ -13,9 +13,9 @@ public class MasterReceiver extends BroadcastReceiver {
     @Override
     public void onReceive(Context ctx, Intent intent) {
         try {
-            UserSettings.log("MasterReceiver fired at " + UserSettings.getLogTime(System.currentTimeMillis()));
+            UserSettings.log("MasterReceiver::onReceive fired at " + UserSettings.getLogTime(System.currentTimeMillis()));
         } catch (Exception e) {
-            UserSettings.log("MasterReceiver write to log failed at " +
+            UserSettings.log("MasterReceiver::onReceive write to log failed at " +
                 UserSettings.getLogTime(System.currentTimeMillis()) +": " + e);
         }
 

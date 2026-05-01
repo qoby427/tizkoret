@@ -124,9 +124,15 @@ public class LocationHelper {
                             }
                         }
 
-                        @Override public void onProviderEnabled(@NonNull String provider) {}
-                        @Override public void onProviderDisabled(@NonNull String provider) {}
-                        @Override public void onStatusChanged(String provider, int status, Bundle extras) {}
+                        @Override public void onProviderEnabled(@NonNull String provider) {
+                            UserSettings.log("LocationHelper::onProviderEnabled - "+provider);
+                        }
+                        @Override public void onProviderDisabled(@NonNull String provider) {
+                            UserSettings.log("LocationHelper::onProviderDisabled - "+provider);
+                        }
+                        @Override public void onStatusChanged(String provider, int status, Bundle extras) {
+                            UserSettings.log("LocationHelper::onStatusChanged - "+provider+" status "+status);
+                        }
                     }
             );
         }

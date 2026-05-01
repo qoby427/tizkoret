@@ -15,8 +15,8 @@ import com.google.android.gms.location.LocationServices;
 import com.google.android.gms.location.Priority;
 
 public class App extends Application {
-    @Override
     @SuppressLint("MissingPermission")
+    @Override
     public void onCreate() {
         super.onCreate();
         createNotificationChannels();
@@ -24,23 +24,31 @@ public class App extends Application {
         LogManager.init(this);
         EventManager.init(this);
 
-        LocationRequest req = new LocationRequest.Builder(0)
-            .setPriority(Priority.PRIORITY_PASSIVE)
-            .setMinUpdateIntervalMillis(0)
-            .setMinUpdateDistanceMeters(0)
-            .build();
+        // Modern, valid passive request (2024–2026)
+        LocationRequest req = new LocationRequest.Builder(Priority.PRIORITY_PASSIVE)
+                .setMinUpdateIntervalMillis(0)
+                .setMinUpdateDistanceMeters(0)
+                .setMaxUpdateDelayMillis(5000)   // REQUIRED for passive mode to work
+                .build();
 
         LocationCallback cb = new LocationCallback() {
-            @Override public void onLocationResult(LocationResult r) {
-                if (r != null && r.getLastLocation() != null)
+            @Override
+            public void onLocationResult(LocationResult r) {
+                if (r != null && r.getLastLocation() != null) {
+                    UserSettings.log("App::onLocationResult - "+r.getLastLocation().toString());
                     PassiveLocationStore.update(r.getLastLocation());
+                }
+                else {
+                    UserSettings.log("App::onLocationResult - no location provided");
+                }
             }
         };
 
-        FusedLocationProviderClient fused = LocationServices.getFusedLocationProviderClient(this);
+        FusedLocationProviderClient fused =
+                LocationServices.getFusedLocationProviderClient(this);
+
         fused.requestLocationUpdates(req, cb, Looper.getMainLooper());
     }
-
     private void createNotificationChannels() {
         if (Build.VERSION.SDK_INT < Build.VERSION_CODES.O)
             return;
