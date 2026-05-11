@@ -4,6 +4,7 @@ import android.annotation.SuppressLint;
 import android.app.Application;
 import android.app.NotificationChannel;
 import android.app.NotificationManager;
+import android.location.Location;
 import android.os.Build;
 import android.os.Looper;
 
@@ -22,7 +23,6 @@ public class App extends Application {
         createNotificationChannels();
 
         LogManager.init(this);
-        EventManager.init(this);
 
         // Modern, valid passive request (2024–2026)
         LocationRequest req = new LocationRequest.Builder(Priority.PRIORITY_PASSIVE)
@@ -34,13 +34,15 @@ public class App extends Application {
         LocationCallback cb = new LocationCallback() {
             @Override
             public void onLocationResult(LocationResult r) {
-                if (r != null && r.getLastLocation() != null) {
-                    UserSettings.log("App::onLocationResult - "+r.getLastLocation().toString());
-                    PassiveLocationStore.update(r.getLastLocation());
+                if (r != null) {
+                    Location loc = r.getLastLocation();
+                    if(loc != null) {
+                        UserSettings.log("App::onLocationResult - " + loc.getLatitude() + ", " + loc.getLongitude());
+                        PassiveLocationStore.update(r.getLastLocation());
+                        return;
+                    }
                 }
-                else {
-                    UserSettings.log("App::onLocationResult - no location provided");
-                }
+                UserSettings.log("App::onLocationResult - no location provided");
             }
         };
 

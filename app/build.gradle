@@ -44,7 +44,7 @@ android {
 
     defaultConfig {
         applicationId "com.emhillstudio.tizcoret"
-        minSdk 23
+        minSdk 30
         targetSdk 36
         versionCode computedVersionCode
         versionName computedVersionName

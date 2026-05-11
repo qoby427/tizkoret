@@ -139,7 +139,8 @@ public class EventManager {
     }
     public void scheduleIfNeeded() {
         UserSettings.log("");
-        UserSettings.log("EventManager::scheduleIfNeeded: Starting master planning +++++++++++++++++++++++++++++++++");
+        UserSettings.log("EventManager::scheduleIfNeeded: Starting master planning " +
+            (immediately? "immediately " : "")  + "+++++++++++++++++++++++++++++++++");
         schedule();
     }
     public void scheduleIfNeeded(String json) {

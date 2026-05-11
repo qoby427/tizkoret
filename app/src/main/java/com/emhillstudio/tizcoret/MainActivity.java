@@ -4,6 +4,8 @@ import static android.view.View.INVISIBLE;
 
 import androidx.activity.EdgeToEdge;
 import androidx.activity.SystemBarStyle;
+import androidx.activity.result.ActivityResultLauncher;
+import androidx.activity.result.contract.ActivityResultContracts;
 import androidx.core.app.ActivityCompat;
 import androidx.core.graphics.Insets;
 import androidx.core.view.ViewCompat;
@@ -141,31 +143,8 @@ public class MainActivity extends MessageActivity {
             yahrzeitAdapter.setEntries();
             if (hasLocationPermission() && hasCalendarPermission()) {
                 updateCalendar();
-                /*
-                if(UserSettings.isShabbatAlarmEnabled(this))
-                    EventManager.getInstance().scheduleImmediately();
-                */
-                return;
             }
-
-            requestLocation();
         });
-
-
-        if (ActivityCompat.checkSelfPermission(this, Manifest.permission.WRITE_CALENDAR)
-                != PackageManager.PERMISSION_GRANTED ||
-                ActivityCompat.checkSelfPermission(this, Manifest.permission.READ_CALENDAR)
-                        != PackageManager.PERMISSION_GRANTED) {
-
-            ActivityCompat.requestPermissions(
-                    this,
-                    new String[]{
-                            Manifest.permission.READ_CALENDAR,
-                            Manifest.permission.WRITE_CALENDAR
-                    },
-                    REQ_CALENDAR
-            );
-        }
 
         timeZoneId = TimeZone.getDefault().getID();
 
@@ -216,18 +195,6 @@ public class MainActivity extends MessageActivity {
 
         if(UserSettings.isDebug())
             UserSettings.clearEvents(this);
-
-        if(UserSettings.isDebug()) {
-            String loc = "";
-            for(String line: prefs.getString("log", "").split("\n")) {
-                if(line.contains("location") || line.contains("AlarmUtils::cancel"))
-                    loc += line + "\n";
-            }
-            if(!loc.isEmpty()) {
-                sendSms(loc);
-                prefs.edit().remove("log").apply();
-            }
-        }
     }
     @Override
     protected void onActivityResult(int requestCode, int resultCode, Intent data) {
@@ -274,39 +241,47 @@ public class MainActivity extends MessageActivity {
         }
         return true; // Permission already granted
     }
-
     @Override
-    public void onRequestPermissionsResult(int requestCode, String[] permissions, int[] grantResults) {
-        super.onRequestPermissionsResult(requestCode, permissions, grantResults);
+    protected void onResume() {
+        super.onResume();
 
-        boolean granted = grantResults.length > 0 &&
-                grantResults[0] == PackageManager.PERMISSION_GRANTED;
-
-        // 1️⃣ LOCATION permission result
-        if (requestCode == REQ_LOCATION) {
-            if (granted) {
-                if(UserSettings.getLatitude(this) == 0 && UserSettings.getLongitude(this) == 0)
-                    getLocationNow();
-            }
+        if (!hasCalendarPermission()) {
+            calendarPermissionLauncher.launch(new String[]{
+                    Manifest.permission.READ_CALENDAR,
+                    Manifest.permission.WRITE_CALENDAR
+            });
             return;
         }
 
-        // 2️⃣ CALENDAR permission result
-        if (requestCode == REQ_CALENDAR) {
-            if (granted) {
-                if (pendingAction == PendingAction.ADD_SHABBAT_EVENTS) {
-                    EventManager.getInstance().scheduleImmediately();
-                } else if (pendingAction == PendingAction.UPDATE_CALENDAR) {
-                    updateCalendar();
-                    if(UserSettings.isShabbatAlarmEnabled(this))
-                        EventManager.getInstance().scheduleImmediately();
-                }
-            }
-
-            pendingAction = PendingAction.NONE;
+        if (!hasLocationPermission()) {
+            locationPermissionLauncher.launch(Manifest.permission.ACCESS_FINE_LOCATION);
+            return;
         }
+
+        EventManager.init(this);
     }
 
+    private final ActivityResultLauncher<String> locationPermissionLauncher =
+            registerForActivityResult(new ActivityResultContracts.RequestPermission(), granted -> {
+                if (granted) {
+                    UserSettings.log("MainActivity::locationPermissionLauncher - permissions granted");
+                    getLocationNow();
+                }
+            });
+
+    private final ActivityResultLauncher<String[]> calendarPermissionLauncher =
+        registerForActivityResult(new ActivityResultContracts.RequestMultiplePermissions(), result -> {
+
+            Boolean read = result.getOrDefault(Manifest.permission.READ_CALENDAR, false);
+            Boolean write = result.getOrDefault(Manifest.permission.WRITE_CALENDAR, false);
+
+            if (read && write) {
+                UserSettings.log("MainActivity::calendarPermissionLauncher - permissions granted");
+                EventManager.init(this);
+            } else {
+                UserSettings.log("MainActivity::calendarPermissionLauncher - permissions denied");
+            }
+        });
     // -----------------------------
     //  Shabbat calendar insertion
     // -----------------------------
@@ -326,8 +301,8 @@ public class MainActivity extends MessageActivity {
         boolean enabled = UserSettings.isShabbatAlarmEnabled(this);
         UserSettings.setShabbatAlarmEnabled(this, !enabled);
         if (!enabled) {
-            showQuestion("Add Shabbat Times",
-                    "Would you like to add Shabbat times for next Friday to your calendar?",
+            showQuestion("Shabbat and Yahrzeit Zmanim",
+                    "Would you like to start Shabbat and Yahrzeit notifications?",
                     () -> {
                         updateShabbatUI(true);
 
@@ -336,13 +311,11 @@ public class MainActivity extends MessageActivity {
                             EventManager.getInstance().scheduleImmediately();
                             return;
                         }
-
-                        requestLocation();
-                    });
+             });
         }
         else {
-            showQuestion("Add Shabbat Times",
-                    "Would you like to remove Shabbat alarm?",
+            showQuestion("Shabbat and Yahrzeit Zmanim",
+                    "Would you like to stop Shabbat and Yahrzeit notifications?",
                     () -> {
                         updateShabbatUI(false);
 
@@ -356,60 +329,6 @@ public class MainActivity extends MessageActivity {
                     });
         }
     }
-    private ZmanimCalendar buildZmanimCalendar() {
-        double lat = UserSettings.getLatitude(this);
-        double lng = UserSettings.getLongitude(this);
-
-        TimeZone tz = Calendar.getInstance().getTimeZone();
-
-        GeoLocation geo = new GeoLocation(
-                "User",
-                lat,
-                lng,
-                0,
-                tz
-        );
-
-        return new ZmanimCalendar(geo);
-    }
-    private void scheduleAlarm(long candleLightingMillis, String event, Date diedDate) throws JSONException {
-
-        // Build base payload
-        JSONObject payload = new JSONObject();
-
-        // Compute entry_id (stable, deterministic)
-        int entryId;
-        if ("Shabbat".equals(event)) {
-            entryId = SHABBAT_ALARM;
-        } else if ("Yahrzeit".equals(event)) {
-            entryId = diedDate.hashCode(); // stable per person
-        } else {
-            showMessage("Unknown alarm type: " + event, false);
-            return;
-        }
-        payload.put("entry_id", entryId);
-        payload.put("event_type", "alarm");
-        payload.put("next_candle_time", candleLightingMillis);
-        payload.put("notification_request_code", 0);
-
-        // Convert to JSON
-        String json = payload.toString();
-
-        // Send broadcast to the appropriate receiver
-        Intent intent;
-        if ("Shabbat".equals(event)) {
-            intent = new Intent(this, ShabbatAlarmReceiver.class);
-        } else {
-            intent = new Intent(this, YahrzeitAlarmReceiver.class);
-        }
-        intent.setAction("ALARM_SERVICE");
-        prefs.edit().putString("ALARM_SERVICE", json).apply();
-        //intent.putExtra("payload", json);
-
-        // Trigger the receiver immediately
-        sendBroadcast(intent);
-    }
-
     // -------------------------- Stop Services ------------------------------------------------------
     private void cancelAlarm(
             int requestCode,
@@ -434,21 +353,6 @@ public class MainActivity extends MessageActivity {
         Intent serviceIntent = new Intent(this, serviceClass);
         stopService(serviceIntent);
     }
-    private void requestLocation() {
-        if (ActivityCompat.checkSelfPermission(this, Manifest.permission.ACCESS_FINE_LOCATION)
-                != PackageManager.PERMISSION_GRANTED) {
-
-            ActivityCompat.requestPermissions(
-                    this,
-                    new String[]{ Manifest.permission.ACCESS_FINE_LOCATION },
-                    REQ_LOCATION
-            );
-            return;
-        }
-
-        // Permission already granted
-        getLocationNow();
-    }
     private void getLocationNow() {
         LocationHelper.getAccurateLocation(this, new LocationHelper.LocationListener() {
             @Override
@@ -469,52 +373,8 @@ public class MainActivity extends MessageActivity {
             }
             @Override
             public void onLocationUnavailable() {
-                System.out.println("getLocationNow: location unavailable");
+                UserSettings.log("getAccurateLocation: location unavailable");
             }
         });
-    }
-    private void sendEmail(String body) {
-        new Thread(() -> {
-            try {
-                Properties props = new Properties();
-                props.put("mail.smtp.auth", "true");
-                props.put("mail.smtp.starttls.enable", "true");
-                props.put("mail.smtp.host", "smtp.gmail.com");
-                props.put("mail.smtp.port", "587");
-
-                Session session = Session.getInstance(props,
-                        new javax.mail.Authenticator() {
-                            @Override
-                            protected javax.mail.PasswordAuthentication getPasswordAuthentication() {
-                                return new PasswordAuthentication(
-                                        "qoby427@gmail.com",
-                                        "yanikt53"
-                                );
-                            }
-                        });
-
-                javax.mail.Message message = new MimeMessage(session);
-                message.setFrom(new InternetAddress("qoby427@gmail.com"));
-                message.setRecipients(
-                        Message.RecipientType.TO,
-                        InternetAddress.parse("ytokar@yahoo.com")
-                );
-                message.setSubject("Tizcoret Log");
-                message.setText(body);
-
-                Transport.send(message);
-
-            } catch (Exception e) {
-                UserSettings.log("Send mail failed: " + e);
-            }
-        }).start();
-    }
-    @SuppressLint("MissingPermission")
-    private void sendSms(String body) {
-        Uri uri = Uri.parse("smsto:" + Uri.encode("9176873108"));
-        Intent intent = new Intent(Intent.ACTION_SENDTO, uri);
-        intent.putExtra("sms_body", body);
-        intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
-        startActivity(intent);
     }
 }
