@@ -198,7 +198,6 @@ public class UserSettings {
         LogManager.log(msg);
     }
     public static boolean isDebug() { return false && BuildConfig.DEBUG; }
-    public static boolean isConnected() { return Debug.isDebuggerConnected(); }
     public static void setPrefs(Context ctx, SharedPreferences p) {
         logprefs = p;
     }

@@ -22,7 +22,11 @@ public class MasterReceiver extends BroadcastReceiver {
         SharedPreferences prefs = ctx.getSharedPreferences(UserSettings.PREFS, MODE_PRIVATE);
         String json = prefs.getString(intent.getAction(), null);
 
-        EventManager.getInstance().scheduleIfNeeded(json);
+        try {
+            EventManager.getInstance().scheduleIfNeeded(json);
+        } catch (Exception e) {
+            UserSettings.log("MasterReceiver::onReceive - "+e.toString());
+        }
 
         prefs.edit().remove(intent.getAction()).apply();
     }

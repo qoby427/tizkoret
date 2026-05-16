@@ -19,7 +19,6 @@ import com.google.gson.Gson;
 import org.json.JSONObject;
 
 import java.util.ArrayList;
-import java.util.HashMap;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
@@ -104,11 +103,9 @@ public class EventManager {
     // ------------------------------------------------------------
     // INSTANCE STATE
     // ------------------------------------------------------------
-    private static EventManager instance;
+    private static EventManager instance = null;
     private final Context ctx;
     private final ShabbatHelper helper;
-
-
     private EventManager(Context context) {
         ctx = context.getApplicationContext();
         prefs = ctx.getSharedPreferences(UserSettings.PREFS, MODE_PRIVATE);
@@ -125,7 +122,7 @@ public class EventManager {
     }
     public static EventManager getInstance() {
         if (instance == null) {
-            throw new IllegalStateException("EventManager.init(context) not called");
+            throw new IllegalStateException("EventManager.init not called");
         }
         return instance;
     }

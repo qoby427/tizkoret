@@ -37,7 +37,6 @@ public class App extends Application {
                 if (r != null) {
                     Location loc = r.getLastLocation();
                     if(loc != null) {
-                        UserSettings.log("App::onLocationResult - " + loc.getLatitude() + ", " + loc.getLongitude());
                         PassiveLocationStore.update(r.getLastLocation());
                         return;
                     }

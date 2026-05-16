@@ -165,7 +165,11 @@ public class AlarmService extends Service {
         super.onDestroy();
         stopAlarm();
 
-        EventManager.getInstance().scheduleIfNeeded();
+        try {
+            EventManager.getInstance().scheduleIfNeeded();
+        } catch (Exception e) {
+            UserSettings.log("AlarmService::onDestroy - " + e);
+        }
     }
 
     @Override
