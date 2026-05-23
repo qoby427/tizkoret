@@ -23,7 +23,11 @@ public class App extends Application {
         createNotificationChannels();
 
         LogManager.init(this);
-
+        try {
+            EventManager.init(this);
+        } catch (Exception e) {
+            UserSettings.log("App::onCreate - " + e);
+        }
         // Modern, valid passive request (2024–2026)
         LocationRequest req = new LocationRequest.Builder(Priority.PRIORITY_PASSIVE)
                 .setMinUpdateIntervalMillis(0)

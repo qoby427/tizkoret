@@ -15,8 +15,7 @@ public class MasterReceiver extends BroadcastReceiver {
         try {
             UserSettings.log("MasterReceiver::onReceive fired at " + UserSettings.getLogTime(System.currentTimeMillis()));
         } catch (Exception e) {
-            UserSettings.log("MasterReceiver::onReceive write to log failed at " +
-                UserSettings.getLogTime(System.currentTimeMillis()) +": " + e);
+            UserSettings.log("MasterReceiver::onReceive write to log failed - " + e);
         }
 
         SharedPreferences prefs = ctx.getSharedPreferences(UserSettings.PREFS, MODE_PRIVATE);

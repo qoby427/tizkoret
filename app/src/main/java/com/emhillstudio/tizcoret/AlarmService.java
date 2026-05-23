@@ -15,10 +15,7 @@ import android.os.Looper;
 import androidx.core.app.NotificationCompat;
 
 public class AlarmService extends Service {
-
     private MediaPlayer mediaPlayer;
-    private String  event;
-    private String message;
 
     @Override
     public int onStartCommand(Intent intent, int flags, int startId) {
@@ -29,15 +26,15 @@ public class AlarmService extends Service {
 
         // 2. Parse payload
         if("ALARM".equals(intent.getAction())) {
-            message = intent.getStringExtra("message");
-            event = intent.getStringExtra("event");
+            String message = intent.getStringExtra("message");
+            String event = intent.getStringExtra("event");
 
             String candleTime = intent.getStringExtra("candle_time");
             int reqcode = intent.getIntExtra("request_code", 1);
 
             UserSettings.log("AlarmService::onStartCommand: event=" + event + " reqcode=" + reqcode + " candle time " + candleTime);
 
-            startForeground(reqcode, buildNotification());
+            startForeground(reqcode, buildNotification(event, message));
             startAlarmSound(getAlarmTone(event));
         }
         return START_STICKY;
@@ -61,8 +58,8 @@ public class AlarmService extends Service {
     // -----------------------------
     // RINGTONE SELECTION
     // -----------------------------
-    private Uri getAlarmTone(String event) {
-        Uri saved = event.equals("Shabbat") ?
+    private Uri getAlarmTone(String e) {
+        Uri saved = e.equals("Shabbat") ?
                 UserSettings.getShabbatRingtone(this) :
                 UserSettings.getYahrzeitRingtone(this);
 
@@ -79,7 +76,7 @@ public class AlarmService extends Service {
     // -----------------------------
     // NOTIFICATION
     // -----------------------------
-    private Notification buildNotification() {
+    private Notification buildNotification(String event, String message) {
         Intent stopIntent = new Intent(this, StopAllReceiver.class);
 
         PendingIntent stopPendingIntent = PendingIntent.getBroadcast(
@@ -117,7 +114,6 @@ public class AlarmService extends Service {
     private void startAlarmSound(Uri alarmUri) {
         try {
             mediaPlayer = new MediaPlayer();
-            mediaPlayer.setAudioStreamType(AudioManager.STREAM_ALARM);
             mediaPlayer.setDataSource(this, alarmUri);
             mediaPlayer.setLooping(true);
             mediaPlayer.prepare();
@@ -166,6 +162,7 @@ public class AlarmService extends Service {
         stopAlarm();
 
         try {
+            EventManager.init(this);
             EventManager.getInstance().scheduleIfNeeded();
         } catch (Exception e) {
             UserSettings.log("AlarmService::onDestroy - " + e);
