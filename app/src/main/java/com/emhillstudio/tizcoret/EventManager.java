@@ -165,12 +165,13 @@ public class EventManager {
                 {
                     UserSettings.setLatitude(ctx, loc.getLatitude());
                     UserSettings.setLongitude(ctx, loc.getLongitude());
-                    UserSettings.log("EventManager::scheduleIfNeeded - Using new location " + loc.getLatitude() + ", " + loc.getLongitude());
+                    UserSettings.log("EventManager::scheduleIfNeeded - Using new location " + loc.getProvider() + " - " +
+                        loc.getLatitude() + ", " + loc.getLongitude());
 
                     sendLocationChangedNotification(loc);
                 }
                 else
-                    UserSettings.log("EventManager::scheduleIfNeeded - Using location " + oldLat + ", " + oldLng);
+                    UserSettings.log("EventManager::scheduleIfNeeded - Using old location " + oldLat + ", " + oldLng);
                 schedule(e);
             }
             @Override
@@ -407,14 +408,14 @@ public class EventManager {
                 LocationServices.getFusedLocationProviderClient(ctx);
 
         // 1. Try cached fused location (allowed everywhere)
-        fused.getLastLocation().addOnSuccessListener(last -> {
-            if (last != null) {
-                listener.onLocationAvailable(last);
+        fused.getLastLocation().addOnSuccessListener(active -> {
+            if (active != null) {
+                listener.onLocationAvailable(active);
                 return;
             }
 
             // 2. Try passive location (your new primary source)
-            Location passive = PassiveLocationStore.get();
+            Location passive = PassiveLocationStore.get(ctx);
             if (passive != null) {
                 listener.onLocationAvailable(passive);
                 return;
@@ -424,7 +425,7 @@ public class EventManager {
             listener.onLocationUnavailable();
         }).addOnFailureListener(e -> {
             // Failure retrieving last location
-            Location passive = PassiveLocationStore.get();
+            Location passive = PassiveLocationStore.get(ctx);
             if (passive != null)
                 listener.onLocationAvailable(passive);
             else

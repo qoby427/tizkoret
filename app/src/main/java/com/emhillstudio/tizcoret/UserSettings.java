@@ -2,12 +2,11 @@ package com.emhillstudio.tizcoret;
 
 import static android.content.Context.MODE_PRIVATE;
 
+import android.annotation.SuppressLint;
 import android.content.Context;
 import android.content.SharedPreferences;
 import android.media.RingtoneManager;
 import android.net.Uri;
-import android.os.Build;
-import android.os.Debug;
 import android.util.Log;
 
 import com.google.gson.Gson;
@@ -24,11 +23,11 @@ import java.util.List;
 import java.util.Locale;
 
 public class UserSettings {
-    private static SharedPreferences logprefs;
-
     public static final String PREFS = "prefs";
-    private static final String KEY_LAT = "latitude";
-    private static final String KEY_LNG = "longitude";
+    public static final String KEY_LAT = "latitude";
+    public static final String KEY_LNG = "longitude";
+    public static final String KEY_TIME = "time";
+
     private static final String KEY_SHABBAT_ALARM = "shabbat_alarm_enabled";
     private static final String KEY_YAHRZEIT_LIST = "yahrzeit_list";
     private enum DateFormat {
@@ -47,13 +46,18 @@ public class UserSettings {
     public static void setLongitude(Context ctx, double lng) {
         prefs(ctx).edit().putFloat(KEY_LNG, (float) lng).apply();
     }
-
+    public static void setLocationTime(Context ctx, long time) {
+        prefs(ctx).edit().putLong(KEY_TIME, time).apply();
+    }
     public static double getLatitude(Context ctx) {
         return prefs(ctx).getFloat(KEY_LAT, 0f);
     }
 
     public static double getLongitude(Context ctx) {
         return prefs(ctx).getFloat(KEY_LNG, 0f);
+    }
+    public static long getLocationTime(Context ctx) {
+        return prefs(ctx).getLong(KEY_TIME, 0);
     }
 
     // -----------------------------
@@ -91,12 +95,12 @@ public class UserSettings {
     public static void saveYahrzeitList(Context ctx, JSONArray arr) {
         prefs(ctx).edit().putString(KEY_YAHRZEIT_LIST, arr.toString()).apply();
     }
+    @SuppressLint("ObsoleteSdkInt")
     public static void saveYahrzeitList(Context context, List<YahrzeitEntry> list) {
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.N) {
-            list.removeIf(e ->
-                    e.name == null || e.name.trim().isEmpty() || e.diedDate == null
-            );
-        }
+        list.removeIf(e ->
+                e.name == null || e.name.trim().isEmpty() || e.diedDate == null
+        );
+
         Gson gson = new Gson();
         String json = gson.toJson(list);
 
@@ -111,11 +115,9 @@ public class UserSettings {
         Gson gson = new Gson();
         Type type = new TypeToken<List<YahrzeitEntry>>() { }.getType();
         List<YahrzeitEntry> list = gson.fromJson(json, type);
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.N) {
-            list.removeIf(e ->
-                    e.name == null || e.name.trim().isEmpty() || e.diedDate == null
-            );
-        }
+        list.removeIf(e ->
+                e.name == null || e.name.trim().isEmpty() || e.diedDate == null
+        );
         return list;
     }
 
@@ -198,9 +200,7 @@ public class UserSettings {
         LogManager.log(msg);
     }
     public static boolean isDebug() { return false && BuildConfig.DEBUG; }
-    public static void setPrefs(Context ctx, SharedPreferences p) {
-        logprefs = p;
-    }
+
     public static void clearLog() {
         LogManager.clearLog();
     }

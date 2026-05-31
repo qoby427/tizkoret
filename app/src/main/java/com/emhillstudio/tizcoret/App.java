@@ -41,7 +41,7 @@ public class App extends Application {
                 if (r != null) {
                     Location loc = r.getLastLocation();
                     if(loc != null) {
-                        PassiveLocationStore.update(r.getLastLocation());
+                        PassiveLocationStore.update(App.this, loc);
                         return;
                     }
                 }

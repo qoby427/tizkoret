@@ -1,26 +1,36 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
 
-    <!-- Your app theme -->
+    <!-- App theme -->
     <style name="Theme.Tizkoret" parent="Theme.Material3.DayNight.NoActionBar">
-        <!-- ADD THIS LINE -->
+
+        <!-- Disable Material 3 automatic edge-to-edge -->
+        <item name="enableEdgeToEdge">false</item>
+
+        <!-- Explicit system bar behavior (prevents MDC from calling deprecated APIs) -->
+        <item name="android:windowFullscreen">false</item>
+        <item name="android:windowLayoutInDisplayCutoutMode">never</item>
+
+        <!-- Classic system bar colors (non-deprecated theme-based approach) -->
+        <item name="android:statusBarColor">@android:color/black</item>
+        <item name="android:navigationBarColor">@android:color/black</item>
+
+        <!-- Your existing dialog theme -->
         <item name="android:alertDialogTheme">@style/TizkoretDialogTheme</item>
     </style>
 
     <!-- Dialog theme override -->
     <style name="TizkoretDialogTheme" parent="ThemeOverlay.Material3.MaterialAlertDialog">
-        <!-- Make dialog window fully transparent -->
         <item name="android:windowBackground">@android:color/transparent</item>
         <item name="background">@android:color/transparent</item>
         <item name="colorPrimary">@color/md_theme_primary</item>
         <item name="colorOnPrimary">@color/md_theme_onPrimary</item>
 
-        <!-- Your existing button styles -->
         <item name="buttonBarPositiveButtonStyle">@style/TizkoretDialogButton</item>
         <item name="buttonBarNegativeButtonStyle">@style/TizkoretDialogButton</item>
     </style>
 
-    <!-- Your custom dialog button style -->
+    <!-- Custom dialog button style -->
     <style name="TizkoretDialogButton" parent="Widget.Material3.Button.TextButton.Dialog">
         <item name="android:textSize">18sp</item>
         <item name="android:paddingLeft">24dp</item>

@@ -82,7 +82,6 @@ public class MainActivity extends MessageActivity {
 
         prefs = getSharedPreferences(UserSettings.PREFS, MODE_PRIVATE);
         prefs.edit().putLong("debug_last_candle", 0).apply();
-        UserSettings.setPrefs(this, prefs);
 
         Thread.setDefaultUncaughtExceptionHandler((thread, throwable) -> {
             UserSettings.log("FATAL: " + throwable);
