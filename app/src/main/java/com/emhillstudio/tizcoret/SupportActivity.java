@@ -96,10 +96,10 @@ public class SupportActivity extends MessageActivity implements PurchasesUpdated
 
         billingClient.queryProductDetailsAsync(
                 params,
-                (billingResult, productDetailsList) -> {
+                (billingResult, result) -> {
                     if (billingResult.getResponseCode() == BillingClient.BillingResponseCode.OK) {
                         donationDetails.clear();
-                        for (ProductDetails pd : productDetailsList) {
+                        for (ProductDetails pd : result.getProductDetailsList()) {
                             donationDetails.put(pd.getProductId(), pd);
                         }
                     }
