@@ -111,6 +111,8 @@ public class EventManager {
         prefs = ctx.getSharedPreferences(UserSettings.PREFS, MODE_PRIVATE);
         helper = new ShabbatHelper(ctx);
 
+        UserSettings.log("EventManager created");
+
         List<YahrzeitEntry> saved = UserSettings.loadYahrzeitList(ctx);
         setEntries(saved);
     }
@@ -183,6 +185,7 @@ public class EventManager {
     }
     public void setEntries(List<YahrzeitEntry> newEntries) {
         entries = newEntries;
+        UserSettings.log("EventManager::setEntries - yahrzeits updated with count " + entries.size());
     }
     public void schedule() {
         boolean newEvent = false;

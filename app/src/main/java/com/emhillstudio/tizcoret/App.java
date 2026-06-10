@@ -26,7 +26,7 @@ public class App extends Application {
         try {
             EventManager.init(this);
         } catch (Exception e) {
-            UserSettings.log("App::onCreate - " + e);
+            UserSettings.log("App::onCreate - calendar permissions not granted yet");
         }
         // Modern, valid passive request (2024–2026)
         LocationRequest req = new LocationRequest.Builder(Priority.PRIORITY_PASSIVE)
