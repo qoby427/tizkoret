@@ -113,6 +113,7 @@ public abstract class AlarmReceiver extends BroadcastReceiver {
         try {
             if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
                 UserSettings.log("AlarmReceiver::showFinal: " + event + " reqcode=" + requestCode);
+                AlarmService.clearCode(requestCode);
                 context.startForegroundService(svc);
             } else {
                 context.startService(svc);

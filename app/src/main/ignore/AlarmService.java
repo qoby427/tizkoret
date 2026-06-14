@@ -20,86 +20,65 @@ import java.util.Set;
 public class AlarmService extends Service {
     private MediaPlayer mediaPlayer;
     private static final Set<Integer> processing =  Collections.synchronizedSet(new HashSet<>());
-    private static final Set<String> scheduledTimes = Collections.synchronizedSet(new HashSet<>());
-
     @Override
     public int onStartCommand(Intent intent, int flags, int startId) {
+
         if (intent == null || intent.getAction() == null) {
             // System restart, keep ringing
             return START_STICKY;
         }
 
-        // 2. Parse payload
-        if("ALARM".equals(intent.getAction())) {
-            String message = intent.getStringExtra("message");
+        if ("ALARM".equals(intent.getAction())) {
+
             String event = intent.getStringExtra("event");
-            String candleTime = intent.getStringExtra("candle_time");
+            String message = intent.getStringExtra("message");
             int reqcode = intent.getIntExtra("request_code", 1);
 
-            UserSettings.log("AlarmService::onStartCommand - event=" + event + " reqcode=" + reqcode + " candle time " + candleTime);
+            UserSettings.log("AlarmService::onStartCommand event=" + event + " reqcode=" + reqcode);
+
+            // ⭐ Duplicate suppression
             if (processing.contains(reqcode)) {
                 UserSettings.log("Duplicate start ignored for reqcode=" + reqcode);
                 return START_NOT_STICKY;
             }
             processing.add(reqcode);
 
-            startForeground(reqcode, buildNotification(event, message));
-            startAlarmSound(getAlarmTone(event));
+            // ⭐ Build + start foreground notification
+            Notification notif = buildNotification(event, message);
+            startForeground(reqcode, notif);
 
-            if (!scheduledTimes.add(candleTime)) {
-                UserSettings.log("AlarmService::onStartCommand - Duplicate scheduling avoided for candle time=" + candleTime);
-            } else {
-                try {
-                    EventManager.init(this);
-                    EventManager.getInstance().scheduleIfNeeded();
-                } catch (Exception e) {
-                    UserSettings.log("AlarmService::onStartCommand - cannot start event planning - " + e);
-                }
-            }
+            // ⭐ Delegate to child class
+            handleAlarm(intent, reqcode);
         }
+
         return START_STICKY;
     }
-
-    public static void clearCode(int reqcode) {
-        processing.remove(reqcode);
-    }
-    private void stopAlarm() {
+    // ⭐ Child classes override this to run alarm logic + scheduling
+    protected void handleAlarm(Intent intent, int reqcode) {
         try {
-            if (mediaPlayer != null) {
-                mediaPlayer.stop();
-                mediaPlayer.release();
-            }
-        } catch (Exception e) {
-            UserSettings.log("AlarmService::stopAlarm: " + e);
+            // 1. Start alarm sound
+            startAlarmSound(getAlarmTone("Shabbat"));
+
+            // 2. Schedule next week's Shabbat alarm
+            EventManager.init(this);
+            EventManager.getInstance().scheduleIfNeeded();
+
+        } finally {
+            // 3. Remove reqcode + stop service
+            finishAlarm(reqcode);
         }
-
-        mediaPlayer = null;
-
-        stopForeground(true);
-        UserSettings.log("AlarmService::stopAlarm: foreground stopped =====================================================");
     }
-    // -----------------------------
-    // RINGTONE SELECTION
-    // -----------------------------
-    private Uri getAlarmTone(String e) {
-        Uri saved = e.equals("Shabbat") ?
-                UserSettings.getShabbatRingtone(this) :
-                UserSettings.getYahrzeitRingtone(this);
-
-        if (saved != null) return saved;
-        Uri uri = RingtoneManager.getActualDefaultRingtoneUri(this, RingtoneManager.TYPE_ALARM);
-        if (uri != null) return uri;
-
-        uri = RingtoneManager.getActualDefaultRingtoneUri(this, RingtoneManager.TYPE_NOTIFICATION);
-        if (uri != null) return uri;
-
-        return RingtoneManager.getDefaultUri(RingtoneManager.TYPE_RINGTONE);
+    // ⭐ Call this when alarm logic is fully done
+    protected void finishAlarm(int reqcode) {
+        processing.remove(reqcode);
+        stopSelf();
     }
 
     // -----------------------------
     // NOTIFICATION
     // -----------------------------
     private Notification buildNotification(String event, String message) {
+
         Intent stopIntent = new Intent(this, StopAllReceiver.class);
 
         PendingIntent stopPendingIntent = PendingIntent.getBroadcast(
@@ -111,11 +90,11 @@ public class AlarmService extends Service {
 
         String channelId;
         int icon;
-        if(event.equals("Shabbat")) {
+
+        if ("Shabbat".equals(event)) {
             channelId = "shabbat_channel";
             icon = R.drawable.ic_shabbat_candles;
-        }
-        else {
+        } else {
             channelId = "yahrzeit_channel";
             icon = R.drawable.ic_yahrzeit_candle;
         }
@@ -134,7 +113,7 @@ public class AlarmService extends Service {
     // -----------------------------
     // SOUND ENGINE
     // -----------------------------
-    private void startAlarmSound(Uri alarmUri) {
+    protected void startAlarmSound(Uri alarmUri) {
         try {
             mediaPlayer = new MediaPlayer();
             mediaPlayer.setDataSource(this, alarmUri);
@@ -143,16 +122,17 @@ public class AlarmService extends Service {
             mediaPlayer.start();
 
             fadeInVolume();
-            autoStopAfterOneMinute();
 
-        } catch (Exception ignored) {}
+        } catch (Exception e) {
+            UserSettings.log("AlarmService::startAlarmSound error: " + e);
+        }
     }
 
     private void fadeInVolume() {
         Handler handler = new Handler(Looper.getMainLooper());
         final float[] volume = {0f};
 
-        Runnable ramp = new Runnable() {
+        handler.post(new Runnable() {
             @Override
             public void run() {
                 if (mediaPlayer == null) return;
@@ -163,17 +143,23 @@ public class AlarmService extends Service {
                     handler.postDelayed(this, 500);
                 }
             }
-        };
-
-        handler.post(ramp);
+        });
     }
 
-    private void autoStopAfterOneMinute() {
-        new Handler(Looper.getMainLooper()).postDelayed(() -> {
-            if (mediaPlayer != null) {
-                stopSelf();
-            }
-        }, 60_000);
+    protected Uri getAlarmTone(String event) {
+        Uri saved = event.equals("Shabbat")
+                ? UserSettings.getShabbatRingtone(this)
+                : UserSettings.getYahrzeitRingtone(this);
+
+        if (saved != null) return saved;
+
+        Uri uri = RingtoneManager.getActualDefaultRingtoneUri(this, RingtoneManager.TYPE_ALARM);
+        if (uri != null) return uri;
+
+        uri = RingtoneManager.getActualDefaultRingtoneUri(this, RingtoneManager.TYPE_NOTIFICATION);
+        if (uri != null) return uri;
+
+        return RingtoneManager.getDefaultUri(RingtoneManager.TYPE_RINGTONE);
     }
 
     // -----------------------------
@@ -182,7 +168,21 @@ public class AlarmService extends Service {
     @Override
     public void onDestroy() {
         super.onDestroy();
-        stopAlarm();
+        stopAlarm();   // ⭐ ONLY cleanup here
+    }
+
+    private void stopAlarm() {
+        try {
+            if (mediaPlayer != null) {
+                mediaPlayer.stop();
+                mediaPlayer.release();
+            }
+        } catch (Exception e) {
+            UserSettings.log("AlarmService::stopAlarm: " + e);
+        }
+
+        mediaPlayer = null;
+        stopForeground(true);
     }
 
     @Override
