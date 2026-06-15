@@ -53,6 +53,13 @@ public class EarlyService extends Service {
         candletime = intent.getStringExtra("candle_time");
         event = intent.getStringExtra("event");
 
+        boolean loud = UserSettings.isEarlyLoud(this);
+        if (!loud) {
+            // QUIET MODE
+            showQuietNotification();
+            return START_NOT_STICKY;
+        }
+
         // Start as foreground (required for alarm audio)
         startForeground(1, buildForegroundNotification());
 
@@ -128,6 +135,22 @@ public class EarlyService extends Service {
 
         } catch (Exception e) {
             UserSettings.log("EarlyService::playOnceThenDowngrade exception " + e);
+        }
+    }
+    private void showQuietNotification() {
+        Notification n = new NotificationCompat.Builder(this, "early_channel")
+                .setSmallIcon(R.drawable.ic_shabbat_candles)
+                .setContentTitle(event + " Reminder")
+                .setContentText("Candle lighting at " + candletime)
+                .setPriority(NotificationCompat.PRIORITY_LOW)
+                .setOngoing(false) // swipeable
+                .setOnlyAlertOnce(true)
+                .build();
+
+        if (NotificationManagerCompat.from(this).areNotificationsEnabled()) {
+            NotificationManagerCompat.from(this).notify(1, n);
+        } else {
+            UserSettings.log("EarlyService: notifications disabled, cannot post quiet notification");
         }
     }
 
