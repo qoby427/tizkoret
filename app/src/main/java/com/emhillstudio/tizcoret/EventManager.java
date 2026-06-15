@@ -353,9 +353,9 @@ public class EventManager {
         e.early.action = meta.earlyAction;
         e.early.requestCode = getEarlyReqCode(type, name);
 
-        // Final 2 min
+        // Final 5 min
         e.final5 = new AlarmEntry();
-        e.final5.triggerAt = eventTime - (UserSettings.isDebug() ? 10 * 60_000L : 2 * 60_000L);
+        e.final5.triggerAt = eventTime - (UserSettings.isDebug() ? 10 * 60_000L : 5 * 60_000L);
         e.final5.action = meta.finalAction;
         e.final5.requestCode = getFinalReqCode(type, name);
 

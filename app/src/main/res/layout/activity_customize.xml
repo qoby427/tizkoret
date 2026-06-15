@@ -79,5 +79,33 @@
                 android:text="European style: DD/MM/YYYY" />
         </RadioGroup>
 
+        <!-- Early Notification Volume -->
+        <TextView
+            android:id="@+id/earlyVolumeLabel"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:text="18 Min Notification Volume"
+            android:textSize="18sp"
+            android:paddingTop="12dp" />
+
+        <RadioGroup
+            android:id="@+id/earlyVolumeGroup"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="horizontal">
+
+            <RadioButton
+                android:id="@+id/earlyVolumeLoud"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="Loud" />
+
+            <RadioButton
+                android:id="@+id/earlyVolumeQuiet"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="Quiet"
+                android:layout_marginStart="24dp" />
+        </RadioGroup>
     </LinearLayout>
 </ScrollView>

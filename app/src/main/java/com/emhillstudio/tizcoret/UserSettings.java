@@ -170,6 +170,26 @@ public class UserSettings {
     private static SharedPreferences prefs(Context ctx) {
         return ctx.getApplicationContext().getSharedPreferences(PREFS, MODE_PRIVATE);
     }
+    public static boolean isEarlyLoud(Context ctx) {
+        return ctx.getSharedPreferences(PREFS, MODE_PRIVATE)
+                .getBoolean("early_loud", true); // Loud = default
+    }
+    public static void setEarlyLoud(Context ctx, boolean loud) {
+        ctx.getSharedPreferences(PREFS, MODE_PRIVATE)
+                .edit()
+                .putBoolean("early_loud", loud)
+                .apply();
+    }
+    public static Uri getEarlyTone(Context ctx) {
+        String uriString = ctx.getSharedPreferences(PREFS, MODE_PRIVATE).getString("early_tone_uri", null);
+        if (uriString != null) {
+            try {
+                return Uri.parse(uriString);
+            } catch (Exception ignored) {}
+        }
+        return Uri.parse("android.resource://" + ctx.getPackageName() + "/" + R.raw.notif18min_loud);
+    }
+
     public static String getDateTime(long millis) {
         SimpleDateFormat sdf = new SimpleDateFormat("MMM d yyyy h:mm a", Locale.getDefault());
         return sdf.format(new Date(millis));

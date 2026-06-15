@@ -38,7 +38,7 @@ public class AlarmService extends Service {
 
             UserSettings.log("AlarmService::onStartCommand - event=" + event + " reqcode=" + reqcode + " candle time " + candleTime);
             if (processing.contains(reqcode)) {
-                UserSettings.log("Duplicate start ignored for reqcode=" + reqcode);
+                UserSettings.log("AlarmService::onStartCommand - Duplicate start ignored for reqcode=" + reqcode);
                 return START_NOT_STICKY;
             }
             processing.add(reqcode);
@@ -76,7 +76,7 @@ public class AlarmService extends Service {
         mediaPlayer = null;
 
         stopForeground(true);
-        UserSettings.log("AlarmService::stopAlarm: foreground stopped =====================================================");
+        UserSettings.log("AlarmService::stopAlarm: foreground stopped ======================================");
     }
     // -----------------------------
     // RINGTONE SELECTION

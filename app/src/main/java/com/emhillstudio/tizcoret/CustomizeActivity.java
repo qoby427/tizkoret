@@ -10,7 +10,9 @@ import android.widget.RadioGroup;
 import android.widget.TextView;
 
 import androidx.annotation.Nullable;
-import androidx.appcompat.app.AppCompatActivity;
+
+import com.google.android.material.button.MaterialButton;
+import com.google.android.material.button.MaterialButtonToggleGroup;
 
 public class CustomizeActivity extends MessageActivity {
 
@@ -20,6 +22,7 @@ public class CustomizeActivity extends MessageActivity {
     private SharedPreferences prefs;
     private TextView shText;
     private TextView yzText;
+
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
@@ -37,16 +40,20 @@ public class CustomizeActivity extends MessageActivity {
         findViewById(R.id.btnYahrzeitRingtone).setOnClickListener(v ->
                 openRingtonePicker(REQ_YAHRZEIT_RINGTONE)
         );
+
         updateLabels();
         setupDateFormatSelector();
+        setupEarlyVolumeSelector();
     }
 
+    // ----------------------------------------------------
+    // RINGTONE PICKER
+    // ----------------------------------------------------
     private void openRingtonePicker(int requestCode) {
         Uri uri;
-        if(requestCode == REQ_SHABBAT_RINGTONE) {
+        if (requestCode == REQ_SHABBAT_RINGTONE) {
             uri = UserSettings.getShabbatRingtone(this);
-        }
-        else {
+        } else {
             uri = UserSettings.getYahrzeitRingtone(this);
         }
 
@@ -55,13 +62,10 @@ public class CustomizeActivity extends MessageActivity {
         intent.putExtra(RingtoneManager.EXTRA_RINGTONE_TITLE, "Select Ringtone");
         intent.putExtra(RingtoneManager.EXTRA_RINGTONE_SHOW_SILENT, false);
         intent.putExtra(RingtoneManager.EXTRA_RINGTONE_SHOW_DEFAULT, true);
-
-        // ⭐ This highlights the current ringtone
         intent.putExtra(RingtoneManager.EXTRA_RINGTONE_EXISTING_URI, uri);
 
         startActivityForResult(intent, requestCode);
     }
-
 
     @Override
     protected void onActivityResult(int requestCode, int resultCode, @Nullable Intent data) {
@@ -81,6 +85,9 @@ public class CustomizeActivity extends MessageActivity {
         updateLabels();
     }
 
+    // ----------------------------------------------------
+    // DATE FORMAT
+    // ----------------------------------------------------
     private void setupDateFormatSelector() {
         RadioGroup group = findViewById(R.id.dateFormatGroup);
         RadioButton mmdd = findViewById(R.id.format_mmdd);
@@ -98,10 +105,33 @@ public class CustomizeActivity extends MessageActivity {
             String format = checkedId == R.id.format_mmdd
                     ? "MM/dd/yyyy"
                     : "dd/MM/yyyy";
+
             UserSettings.setDateFormat(checkedId == R.id.format_mmdd);
             prefs.edit().putString("date_format", format).apply();
         });
     }
+
+    // ----------------------------------------------------
+    // EARLY NOTIFICATION VOLUME (LOUD/QUIET TOGGLE)
+    // ----------------------------------------------------
+    private void setupEarlyVolumeSelector() {
+        RadioGroup group = findViewById(R.id.earlyVolumeGroup);
+        RadioButton loud = findViewById(R.id.earlyVolumeLoud);
+        RadioButton quiet = findViewById(R.id.earlyVolumeQuiet);
+
+        boolean isLoud = UserSettings.isEarlyLoud(this); // default = true
+
+        if (isLoud) loud.setChecked(true);
+        else quiet.setChecked(true);
+
+        group.setOnCheckedChangeListener((g, checkedId) -> {
+            boolean loudSelected = checkedId == R.id.earlyVolumeLoud;
+            UserSettings.setEarlyLoud(this, loudSelected);
+        });
+    }
+    // ----------------------------------------------------
+    // LABELS
+    // ----------------------------------------------------
     private void updateLabels() {
         Uri shUri = UserSettings.getShabbatRingtone(this);
         Uri yzUri = UserSettings.getYahrzeitRingtone(this);

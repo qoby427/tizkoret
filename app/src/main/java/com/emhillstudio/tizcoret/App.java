@@ -60,7 +60,16 @@ public class App extends Application {
 
         NotificationManager manager = getSystemService(NotificationManager.class);
 
-        // Shabbat notifications (early + final notification)
+        // Early notifications
+        NotificationChannel early = new NotificationChannel(
+                "early_channel",
+                "Early Notifications",
+                NotificationManager.IMPORTANCE_DEFAULT
+        );
+        early.setDescription("Early candle-lighting reminders");
+        early.enableVibration(false);
+
+        // Shabbat notifications
         NotificationChannel shabbat = new NotificationChannel(
                 "shabbat_channel",
                 "Shabbat Notifications",
@@ -69,7 +78,7 @@ public class App extends Application {
         shabbat.setDescription("Shabbat candle-lighting reminders");
         shabbat.enableVibration(false);
 
-        // Yahrzeit notifications (early + final notification)
+        // Yahrzeit notifications
         NotificationChannel yahrzeit = new NotificationChannel(
                 "yahrzeit_channel",
                 "Yahrzeit Notifications",

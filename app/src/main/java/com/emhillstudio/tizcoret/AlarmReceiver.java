@@ -2,18 +2,12 @@ package com.emhillstudio.tizcoret;
 
 import static android.content.Context.MODE_PRIVATE;
 
-import android.app.AlarmManager;
 import android.app.NotificationManager;
-import android.app.PendingIntent;
 import android.content.BroadcastReceiver;
 import android.content.Context;
 import android.content.Intent;
 import android.content.SharedPreferences;
-import android.net.Uri;
 import android.os.Build;
-
-import androidx.core.app.NotificationCompat;
-
 import org.json.JSONException;
 import org.json.JSONObject;
 
@@ -26,13 +20,6 @@ public abstract class AlarmReceiver extends BroadcastReceiver {
     @Override
     public void onReceive(Context context, Intent intent) {
         prefs = context.getSharedPreferences(UserSettings.PREFS, MODE_PRIVATE);
-
-        try {
-            UserSettings.log("AlarmReceiver fired at " + UserSettings.getLogTime(System.currentTimeMillis()));
-        } catch (Exception e) {
-            UserSettings.log("AlarmReceiver write to log failed at " +
-                UserSettings.getLogTime(System.currentTimeMillis()) +": " + e);
-        }
 
         try {
             String json = prefs.getString(intent.getAction(), null);
@@ -60,35 +47,41 @@ public abstract class AlarmReceiver extends BroadcastReceiver {
             UserSettings.log("AlarmReceiver::onReceive: exception " + e);
         }
     }
-
     protected void showEarly(Context context, JSONObject payload) throws JSONException {
         int requestCode = payload.getInt("request_code");
         long candleTime = payload.getLong("next_candle_time");
-        long notifTime  = payload.getLong("3hour_notif_time");
         String message  = payload.getString("message");
-        String event    = payload.getString("event");
 
-        Uri soundUri = event.equals("Shabbat") ? UserSettings.getShabbatRingtone(context) : UserSettings.getYahrzeitRingtone(context);
+        // Must be "Shabbat" or "Yahrzeit"
+        String event = payload.getString("event");
 
-        UserSettings.log("AlarmReceiver::showEarly: " + event + " req=" + requestCode +
-                " notif time " + UserSettings.getLogTime(notifTime) +
-                ", candle time " + UserSettings.getLogTime(candleTime));
+        UserSettings.log("AlarmReceiver::showEarly: " + event +
+                " reqcode=" + requestCode +
+                " candle=" + UserSettings.getLogTime(candleTime));
 
-        NotificationCompat.Builder builder =
-                new NotificationCompat.Builder(context, channel())
-                        .setSmallIcon(icon())
-                        .setContentTitle("Candle Lighting Reminder")
-                        .setContentText(message)
-                        .setPriority(NotificationCompat.PRIORITY_DEFAULT)
-                        .setSound(soundUri)
-                        .setAutoCancel(true);
+        //
+        // Start EARLY alarm service with MediaPlayer
+        //
+        Intent svc = new Intent(context, EarlyService.class);
 
-        NotificationManager nm =
-                (NotificationManager) context.getSystemService(Context.NOTIFICATION_SERVICE);
+        svc.setAction("EARLY_ALARM");
+        svc.putExtra("event", event);
+        svc.putExtra("message", message);
+        svc.putExtra("request_code", requestCode);
+        svc.putExtra("candle_time", UserSettings.getTimestamp(candleTime));
 
-        nm.notify(requestCode, builder.build());
+        try {
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+                UserSettings.log("AlarmReceiver::showEarly: Starting early service");
+                EarlyService.clearCode(requestCode);
+                context.startForegroundService(svc);
+            } else {
+                context.startService(svc);
+            }
+        } catch (Exception e) {
+            UserSettings.log("AlarmReceiver::showEarly: exception " + e);
+        }
     }
-
     protected void showFinal(Context context, JSONObject payload) throws JSONException {
         int requestCode = payload.getInt("request_code");
         int notifCode   = payload.getInt("notification_request_code");
