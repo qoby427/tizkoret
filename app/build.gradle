@@ -89,6 +89,11 @@ android {
             ]
         }
     }
+    configurations.all {
+        resolutionStrategy {
+            force "com.android.billingclient:billing:8.1.0"
+        }
+    }
 }
 
 dependencies {
@@ -99,7 +104,8 @@ dependencies {
 
     implementation libs.geo
     implementation libs.work.runtime
-    implementation libs.billing
+    implementation "com.android.billingclient:billing:8.1.0"
+
     implementation libs.zmanim
     implementation libs.gson
     implementation libs.material.v1130
@@ -112,4 +118,4 @@ dependencies {
 
     implementation libs.android.mail
     implementation libs.android.activation
-}
+q}
