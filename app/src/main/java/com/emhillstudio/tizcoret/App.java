@@ -87,6 +87,7 @@ public class App extends Application {
         yahrzeit.setDescription("Yahrzeit reminders");
         yahrzeit.enableVibration(false);
 
+        manager.createNotificationChannel(early);
         manager.createNotificationChannel(shabbat);
         manager.createNotificationChannel(yahrzeit);
     }

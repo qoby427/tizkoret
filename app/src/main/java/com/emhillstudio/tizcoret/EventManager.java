@@ -347,7 +347,7 @@ public class EventManager {
         if(meta == null)
             return null;
 
-        // Early 1 hr
+        // Early 18 min
         e.early = new AlarmEntry();
         e.early.triggerAt = eventTime - (UserSettings.isDebug() ? 12 * 60_000L : 18 * 60_000L);
         e.early.action = meta.earlyAction;
