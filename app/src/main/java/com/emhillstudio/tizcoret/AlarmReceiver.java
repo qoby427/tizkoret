@@ -8,6 +8,9 @@ import android.content.Context;
 import android.content.Intent;
 import android.content.SharedPreferences;
 import android.os.Build;
+
+import androidx.core.app.NotificationManagerCompat;
+
 import org.json.JSONException;
 import org.json.JSONObject;
 
@@ -41,8 +44,14 @@ public abstract class AlarmReceiver extends BroadcastReceiver {
             // Handle ALARM event (5 minutes before)
             // ---------------------------------------------------------
             else if ("alarm".equals(eventType)) {
+                // 1. Stop EarlyService (if still running)
+                context.sendBroadcast(new Intent("STOP_EARLY_ALARM"));
+                // 2. Remove the early notification icon
+                NotificationManagerCompat.from(context).cancel(1);
+                // 3. Now show the final alarm
                 showFinal(context, payload);
             }
+
         } catch (Exception e) {
             UserSettings.log("AlarmReceiver::onReceive: exception " + e);
         }

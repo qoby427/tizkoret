@@ -118,12 +118,6 @@ public class HebrewUtils {
         Date gregorian = result.getGregorianCalendar().getTime();
         return gregorian;
     }
-    public static String computeInYear(Date date) {
-        Date gregorian = computeInYearDate(date,0);
-        SimpleDateFormat fmt = new SimpleDateFormat("MMM dd", Locale.US);
-        return fmt.format(gregorian);
-    }
-
     public static long computeNextCandleLighting(Context context) {
         // 1. Load location
         SharedPreferences prefs = context.getSharedPreferences(UserSettings.PREFS, Context.MODE_PRIVATE);

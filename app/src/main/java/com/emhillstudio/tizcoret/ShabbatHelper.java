@@ -32,8 +32,7 @@ public class ShabbatHelper {
         long candleTime;
         if(UserSettings.isDebug()) {
             long last = prefs.getLong("debug_last_candle", 0);
-
-            if (last == 0) {
+            if (last == 0) {  // after start
                 candleTime = System.currentTimeMillis() + 15 * 60_000;
             } else {
                 candleTime = last + 15 * 60_000;

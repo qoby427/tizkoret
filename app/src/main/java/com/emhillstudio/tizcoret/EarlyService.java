@@ -58,18 +58,19 @@ public class EarlyService extends Service {
         event = intent.getStringExtra("event");
 
         boolean loud = UserSettings.isEarlyLoud(this);
-        if (!loud) {
-            // QUIET MODE
-            showQuietNotification();
-            return START_NOT_STICKY;
+
+        UserSettings.log("EarlyService::onStartCommand - starting "+ (loud?"loud":"quiet") + " service");
+
+        if (loud) {
+            startForeground(1, buildForegroundNotification());
+
+            Uri soundUri = UserSettings.getEarlyTone(this);
+            playOnceThenDowngrade(soundUri);
+            UserSettings.log("EarlyService::onStartCommand - playing message");
         }
-
-        // Start as foreground (required for alarm audio)
-        startForeground(1, buildForegroundNotification());
-
-        Uri soundUri = UserSettings.getEarlyTone(this);
-        playOnceThenDowngrade(soundUri);
-
+        else {
+            showQuietNotification();
+        }
         return START_NOT_STICKY;
     }
     private int getIcon() {

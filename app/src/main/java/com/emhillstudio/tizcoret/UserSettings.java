@@ -7,15 +7,17 @@ import android.content.Context;
 import android.content.SharedPreferences;
 import android.media.RingtoneManager;
 import android.net.Uri;
+import android.os.Environment;
 import android.util.Log;
 
 import com.google.gson.Gson;
 import com.google.gson.reflect.TypeToken;
 
-import org.json.JSONArray;
-import org.json.JSONException;
-
+import java.io.File;
+import java.io.FileWriter;
+import java.io.IOException;
 import java.lang.reflect.Type;
+import java.nio.file.Files;
 import java.text.SimpleDateFormat;
 import java.util.ArrayList;
 import java.util.Date;
@@ -83,18 +85,6 @@ public class UserSettings {
     // -----------------------------
     //  Yahrzeit List (JSON array)
     // -----------------------------
-    public static JSONArray getYahrzeitList(Context ctx) {
-        String json = prefs(ctx).getString(KEY_YAHRZEIT_LIST, "[]");
-        try {
-            return new JSONArray(json);
-        } catch (JSONException e) {
-            return new JSONArray();
-        }
-    }
-
-    public static void saveYahrzeitList(Context ctx, JSONArray arr) {
-        prefs(ctx).edit().putString(KEY_YAHRZEIT_LIST, arr.toString()).apply();
-    }
     @SuppressLint("ObsoleteSdkInt")
     public static void saveYahrzeitList(Context context, List<YahrzeitEntry> list) {
         list.removeIf(e ->
@@ -105,12 +95,29 @@ public class UserSettings {
         String json = gson.toJson(list);
 
         prefs(context).edit().putString(KEY_YAHRZEIT_LIST, json).apply();
+        saveYahrzeitList(context, json);
     }
+    private static void saveYahrzeitList(Context context, String json) {
+        File file = getPersistentData(context);
 
+        try (FileWriter writer = new FileWriter(file)) {
+            writer.write(json);
+        } catch (Exception e) {
+            UserSettings.log("Failed to save yahrzeit file: " + e);
+        }
+    }
     public static List<YahrzeitEntry> loadYahrzeitList(Context context) {
-        String json = prefs(context).getString(KEY_YAHRZEIT_LIST, null);
-
-        if (json == null) return new ArrayList<>();
+        String json = prefs(context).getString(KEY_YAHRZEIT_LIST, "");
+        if (json.isEmpty()) {
+            try {
+                File file = getPersistentData(context);
+                json = new String(Files.readAllBytes(file.toPath()));
+            } catch (IOException e) {
+                log("getYahrzeitList - "+e);
+            }
+        }
+        if (json.isEmpty())
+            return new ArrayList<>();
 
         Gson gson = new Gson();
         Type type = new TypeToken<List<YahrzeitEntry>>() { }.getType();
@@ -119,19 +126,6 @@ public class UserSettings {
                 e.name == null || e.name.trim().isEmpty() || e.diedDate == null
         );
         return list;
-    }
-
-    public static void removeYahrzeit(Context ctx, int index) {
-        JSONArray arr = getYahrzeitList(ctx);
-        JSONArray newArr = new JSONArray();
-
-        for (int i = 0; i < arr.length(); i++) {
-            if (i != index) {
-                newArr.put(arr.optJSONObject(i));
-            }
-        }
-
-        saveYahrzeitList(ctx, newArr);
     }
     public static Uri getYahrzeitRingtone(Context context) {
         String uriString = prefs(context).getString("yahrzeit_ringtone", null);
@@ -145,6 +139,16 @@ public class UserSettings {
             return uri;
         // Fallback to system default alarm sound
         return RingtoneManager.getDefaultUri(RingtoneManager.TYPE_ALARM);
+    }
+    private static File getPersistentData(Context context) {
+        File base = new File(
+                Environment.getExternalStorageDirectory(),
+                "Android/media/" + context.getPackageName() + "/data"
+        );
+        if (!base.exists() && !base.mkdirs()) {
+            UserSettings.log("Failed to create persistent data directory: " + base);
+        }
+        return new File(base, "yahrzeits.json");
     }
 
     public static void setYahrzeitRingtone(Context context, Uri uri) {
@@ -191,7 +195,7 @@ public class UserSettings {
     }
 
     public static String getDateTime(long millis) {
-        SimpleDateFormat sdf = new SimpleDateFormat("MMM d yyyy h:mm a", Locale.getDefault());
+        SimpleDateFormat sdf = new SimpleDateFormat(getDateFormat() + " yyyy h:mm a", Locale.getDefault());
         return sdf.format(new Date(millis));
     }
     public static String getTimestamp(long millis) {
