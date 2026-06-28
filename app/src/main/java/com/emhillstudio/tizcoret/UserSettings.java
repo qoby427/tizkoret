@@ -32,6 +32,9 @@ public class UserSettings {
 
     private static final String KEY_SHABBAT_ALARM = "shabbat_alarm_enabled";
     private static final String KEY_YAHRZEIT_LIST = "yahrzeit_list";
+    public static final String SHABBAT_RINGTONE = "shabbat_ringtone";
+    public static final String YAHRZEIT_RINGTONE = "yahrzeit_ringtone";
+
     private enum DateFormat {
         AMERICAN,
         EUROPEAN,
@@ -127,8 +130,23 @@ public class UserSettings {
         );
         return list;
     }
+    public static Uri getShabbatRingtone(Context context) {
+        //prefs(context).edit().remove(SHABBAT_RINGTONE).apply();
+        //prefs(context).edit().remove(YAHRZEIT_RINGTONE).apply();
+        String uriString = prefs(context).getString(SHABBAT_RINGTONE, null);
+
+        if (uriString != null && !uriString.trim().isEmpty()) {
+            return Uri.parse(uriString);
+        }
+
+        Uri uri = Uri.parse("android.resource://" + context.getPackageName() + "/" + R.raw.lecha_dodi);
+        if(uri != null)
+            return uri;
+        // Fallback to system default alarm sound
+        return RingtoneManager.getDefaultUri(RingtoneManager.TYPE_ALARM);
+    }
     public static Uri getYahrzeitRingtone(Context context) {
-        String uriString = prefs(context).getString("yahrzeit_ringtone", null);
+        String uriString = prefs(context).getString(YAHRZEIT_RINGTONE, null);
 
         if (uriString != null && !uriString.trim().isEmpty()) {
             return Uri.parse(uriString);
@@ -150,26 +168,11 @@ public class UserSettings {
         }
         return new File(base, "yahrzeits.json");
     }
-
     public static void setYahrzeitRingtone(Context context, Uri uri) {
-        prefs(context).edit().putString("yahrzeit_ringtone", uri.toString()).apply();
-    }
-
-    public static Uri getShabbatRingtone(Context context) {
-        String uriString = prefs(context).getString("shabbat_ringtone", null);
-
-        if (uriString != null && !uriString.trim().isEmpty()) {
-            return Uri.parse(uriString);
-        }
-
-        Uri uri = Uri.parse("android.resource://" + context.getPackageName() + "/" + R.raw.lecha_dodi);
-        if(uri != null)
-            return uri;
-        // Fallback to system default alarm sound
-        return RingtoneManager.getDefaultUri(RingtoneManager.TYPE_ALARM);
+        prefs(context).edit().putString(YAHRZEIT_RINGTONE, uri.toString()).apply();
     }
     public static void setShabbatRingtone(Context context, Uri uri) {
-        prefs(context).edit().putString("shabbat_ringtone", uri.toString()).apply();
+        prefs(context).edit().putString(SHABBAT_RINGTONE, uri.toString()).apply();
     }
     private static SharedPreferences prefs(Context ctx) {
         return ctx.getApplicationContext().getSharedPreferences(PREFS, MODE_PRIVATE);
@@ -204,10 +207,6 @@ public class UserSettings {
     }
     public static String getLogTime(long millis) {
         return getDateTime(millis);
-        /*
-        SimpleDateFormat sdf = new SimpleDateFormat(getDateFormat() + " " + getTimeFormat(), Locale.getDefault());
-        return sdf.format(new Date(millis));
-        */
     }
     public static void setDateFormat(boolean american) {
         dateFormat = american ? DateFormat.AMERICAN : DateFormat.EUROPEAN;
