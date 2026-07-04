@@ -105,8 +105,9 @@ public class UserSettings {
 
         try (FileWriter writer = new FileWriter(file)) {
             writer.write(json);
+            UserSettings.log("saveYahrzeitList: yahrzeits saved");
         } catch (Exception e) {
-            UserSettings.log("Failed to save yahrzeit file: " + e);
+            UserSettings.log("saveYahrzeitList: Failed to save yahrzeit file: " + e);
         }
     }
     public static List<YahrzeitEntry> loadYahrzeitList(Context context) {
@@ -115,8 +116,8 @@ public class UserSettings {
             try {
                 File file = getPersistentData(context);
                 json = new String(Files.readAllBytes(file.toPath()));
-            } catch (IOException e) {
-                log("getYahrzeitList - "+e);
+            } catch (Exception e) {
+                //UserSettings.log("getYahrzeitList: file does not exist");
             }
         }
         if (json.isEmpty())
