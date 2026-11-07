@@ -308,7 +308,6 @@ public class MainActivity extends MessageActivity {
                         pendingAction = PendingAction.ADD_SHABBAT_EVENTS;
                         if (hasLocationPermission() && hasCalendarPermission()) {
                             EventManager.getInstance().scheduleImmediately();
-                            return;
                         }
              });
         }

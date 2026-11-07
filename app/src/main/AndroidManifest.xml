@@ -72,6 +72,13 @@
                 <action android:name="android.intent.action.BOOT_COMPLETED"/>
             </intent-filter>
         </receiver>
+        <receiver
+            android:name=".TimezoneReceiver"
+            android:exported="false">
+            <intent-filter>
+                <action android:name="android.intent.action.TIMEZONE_CHANGED"/>
+            </intent-filter>
+        </receiver>
 
         <activity android:name=".AboutActivity" />
         <activity android:name=".SupportActivity" />
