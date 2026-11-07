@@ -1,28 +1,36 @@
 package com.emhillstudio.tizcoret;
 
+import android.Manifest;
 import android.app.Notification;
 import android.app.Service;
 import android.content.BroadcastReceiver;
 import android.content.Context;
 import android.content.Intent;
 import android.content.IntentFilter;
+import android.content.pm.PackageManager;
 import android.media.AudioAttributes;
-import android.media.MediaPlayer;
-import android.net.Uri;
+import android.media.AudioFocusRequest;
+import android.media.AudioManager;
 import android.os.Build;
+import android.os.Bundle;
+import android.os.Handler;
 import android.os.IBinder;
+import android.os.Looper;
+import android.speech.tts.TextToSpeech;
+import android.speech.tts.UtteranceProgressListener;
 
 import androidx.annotation.RequiresApi;
 import androidx.core.app.NotificationCompat;
 import androidx.core.app.NotificationManagerCompat;
+import androidx.core.content.ContextCompat;
 
 import java.util.Collections;
 import java.util.HashSet;
+import java.util.Locale;
 import java.util.Set;
 
 public class EarlyService extends Service {
-
-    private MediaPlayer mp;
+    private TextToSpeech tts;
     private String candletime;
     private String event;
     private static final Set<Integer> processing =
@@ -39,13 +47,13 @@ public class EarlyService extends Service {
     @Override
     public void onCreate() {
         super.onCreate();
+
         IntentFilter f = new IntentFilter("STOP_EARLY_ALARM");
         registerReceiver(stopReceiver, f, Context.RECEIVER_NOT_EXPORTED);
     }
 
     @Override
     public int onStartCommand(Intent intent, int flags, int startId) {
-
         int reqcode = intent.getIntExtra("request_code", 1);
 
         if (processing.contains(reqcode)) {
@@ -64,8 +72,7 @@ public class EarlyService extends Service {
         if (loud) {
             startForeground(1, buildForegroundNotification());
 
-            Uri soundUri = UserSettings.getEarlyTone(this);
-            playOnceThenDowngrade(soundUri);
+            playOnceThenDowngrade();
             UserSettings.log("EarlyService::onStartCommand - playing message");
         }
         else {
@@ -101,43 +108,64 @@ public class EarlyService extends Service {
                 .setOnlyAlertOnce(true)
                 .build();
     }
-
-    /**
-     * Plays the sound once, then downgrades the foreground notification
-     * into a normal swipeable notification while keeping the service alive.
-     */
-    private void playOnceThenDowngrade(Uri soundUri) {
+    private void playOnceThenDowngrade() {
         try {
-            AudioAttributes attrs = new AudioAttributes.Builder()
-                    .setUsage(AudioAttributes.USAGE_ALARM)
-                    .setContentType(AudioAttributes.CONTENT_TYPE_SONIFICATION)
+            AudioManager am = (AudioManager) getSystemService(Context.AUDIO_SERVICE);
+
+            AudioAttributes ttsAttrs = new AudioAttributes.Builder()
+                    .setUsage(AudioAttributes.USAGE_ASSISTANCE_ACCESSIBILITY)
+                    .setContentType(AudioAttributes.CONTENT_TYPE_SPEECH)
                     .build();
 
-            mp = new MediaPlayer();
-            mp.setAudioAttributes(attrs);
-            mp.setDataSource(this, soundUri);
-            mp.setVolume(1.0f, 1.0f);
-            mp.setLooping(false);
+            AudioFocusRequest afr = new AudioFocusRequest.Builder(AudioManager.AUDIOFOCUS_GAIN_TRANSIENT)
+                    .setAudioAttributes(ttsAttrs)
+                    .setOnAudioFocusChangeListener(focusChange -> {})
+                    .setWillPauseWhenDucked(false)
+                    .build();
 
-            mp.setOnCompletionListener(player -> {
-                // 1. Stop foreground mode but KEEP the notification
-                stopForeground(false);
+            am.requestAudioFocus(afr);
 
-                // 2. Replace with a swipeable notification
-                Notification swipeable = buildSwipeableNotification();
-                if (NotificationManagerCompat.from(this).areNotificationsEnabled()) {
-                    NotificationManagerCompat.from(this).notify(1, swipeable);
+            tts = new TextToSpeech(this, status -> {
+                if (status == TextToSpeech.SUCCESS) {
+                    tts.setLanguage(Locale.US);
+
+                    tts.setOnUtteranceProgressListener(new UtteranceProgressListener() {
+                        @Override
+                        public void onDone(String utteranceId) {
+                            new Handler(Looper.getMainLooper()).post(() -> {
+
+                                stopForeground(false);
+
+                                Notification swipeable = buildSwipeableNotification();
+                                NotificationManagerCompat nm =
+                                        NotificationManagerCompat.from(EarlyService.this);
+
+                                if (nm.areNotificationsEnabled() &&
+                                        ContextCompat.checkSelfPermission(EarlyService.this,
+                                                Manifest.permission.POST_NOTIFICATIONS)
+                                                == PackageManager.PERMISSION_GRANTED) {
+
+                                    try {
+                                        nm.notify(1, swipeable);
+                                    } catch (SecurityException ignored) {}
+                                }
+
+                                tts.shutdown();
+                                am.abandonAudioFocusRequest(afr);
+                            });
+                        }
+
+                        @Override public void onStart(String id) {}
+                        @Override public void onError(String id) {}
+                    });
+
+                    Bundle params = new Bundle();
+                    params.putString(TextToSpeech.Engine.KEY_PARAM_UTTERANCE_ID, "tizcoret_tts");
+
+                    tts.speak("Candlelighting in 18 minutes at "+candletime,
+                            TextToSpeech.QUEUE_FLUSH, params, "tizcoret_tts");
                 }
-
-                // 3. Release audio resources
-                try {
-                    player.release();
-                } catch (Exception ignored) {}
             });
-
-            mp.prepare();
-            mp.start();
-
         } catch (Exception e) {
             UserSettings.log("EarlyService::playOnceThenDowngrade exception " + e);
         }
@@ -164,14 +192,6 @@ public class EarlyService extends Service {
     }
 
     private void cleanupAndStop() {
-        try {
-            if (mp != null) {
-                mp.stop();
-                mp.release();
-                mp = null;
-            }
-        } catch (Exception ignored) {}
-
         stopForeground(true);
         stopSelf();
     }

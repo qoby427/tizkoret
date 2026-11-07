@@ -5,19 +5,16 @@ import static android.content.Context.MODE_PRIVATE;
 import android.annotation.SuppressLint;
 import android.app.AlarmManager;
 import android.app.PendingIntent;
-import android.content.ContentUris;
-import android.content.ContentValues;
+
 import android.content.Context;
 import android.content.Intent;
 import android.content.SharedPreferences;
-import android.net.Uri;
-import android.provider.CalendarContract;
+import android.os.Build;
 
 import com.google.gson.Gson;
 
 import java.util.Arrays;
 import java.util.Calendar;
-import java.util.TimeZone;
 
 public class AlarmUtils {
     // ------------------------------------------------------------
@@ -29,7 +26,7 @@ public class AlarmUtils {
         if (am == null)
             return;
 
-        long trigger = one_am(info.eventTime, immediately);
+        long trigger = nine_am(info.eventTime, immediately);
         int reqcode = EventManager.getMasterReqCode(info);
 
         String json = new Gson().toJson(info);
@@ -72,7 +69,7 @@ public class AlarmUtils {
             UserSettings.log("AlarmUtils::scheduleEntry " + info.receiverClass().getSimpleName() + " " +
                     e.action + " req code=" + e.requestCode + " at " + UserSettings.getLogTime(e.triggerAt));
             SharedPreferences prefs = context.getSharedPreferences(UserSettings.PREFS, MODE_PRIVATE);
-            prefs.edit().putString(e.action, e.payloadJson.toString()).apply();
+            prefs.edit().putString(e.action, e.payloadJson).apply();
 
             Intent intent = new Intent(context, info.receiverClass());
             intent.setAction(e.action);
@@ -84,11 +81,19 @@ public class AlarmUtils {
                     PendingIntent.FLAG_UPDATE_CURRENT | PendingIntent.FLAG_IMMUTABLE
             );
 
-            am.setExactAndAllowWhileIdle(
-                    AlarmManager.RTC_WAKEUP,
-                    e.triggerAt,
-                    pi
-            );
+            if (Build.VERSION.SDK_INT < Build.VERSION_CODES.S) { // Android 11 and below
+                AlarmManager.AlarmClockInfo alarmInfo =
+                        new AlarmManager.AlarmClockInfo(e.triggerAt, pi);
+
+                am.setAlarmClock(alarmInfo, pi);
+                UserSettings.log("AlarmUtils::scheduleEntry setAlarmClock for Android 11");
+            } else {
+                am.setExactAndAllowWhileIdle(
+                        AlarmManager.RTC_WAKEUP,
+                        e.triggerAt,
+                        pi);
+                UserSettings.log("AlarmUtils::scheduleEntry setExactAndAllowWhileIdle for Android 12+");
+            }
         }
     }
 
@@ -141,7 +146,7 @@ public class AlarmUtils {
             UserSettings.log("AlarmUtils::cancelled master entry req=" + reqcode);
         }
     }
-    public static long one_am(long event, boolean after_reboot) {
+    public static long nine_am(long event, boolean after_reboot) {
         if (UserSettings.isDebug()) {
             return event - 13 * 60_000L;
         }
@@ -150,8 +155,8 @@ public class AlarmUtils {
 
         // Compute the intended 1:00 AM master event time
         Calendar cal = Calendar.getInstance();
-        cal.setTimeInMillis(event);
-        cal.set(Calendar.HOUR_OF_DAY, 1);
+        //cal.setTimeInMillis(event);
+        cal.set(Calendar.HOUR_OF_DAY, 9);
         cal.set(Calendar.MINUTE, 0);
         cal.set(Calendar.SECOND, 0);
         cal.set(Calendar.MILLISECOND, 0);

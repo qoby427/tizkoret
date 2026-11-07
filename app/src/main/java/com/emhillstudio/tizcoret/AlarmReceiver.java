@@ -7,7 +7,6 @@ import android.content.BroadcastReceiver;
 import android.content.Context;
 import android.content.Intent;
 import android.content.SharedPreferences;
-import android.os.Build;
 
 import androidx.core.app.NotificationManagerCompat;
 
@@ -18,11 +17,9 @@ public abstract class AlarmReceiver extends BroadcastReceiver {
     protected abstract String channel();
     protected abstract int icon();
 
-    protected static SharedPreferences prefs;
-
     @Override
     public void onReceive(Context context, Intent intent) {
-        prefs = context.getSharedPreferences(UserSettings.PREFS, MODE_PRIVATE);
+        SharedPreferences prefs = context.getSharedPreferences(UserSettings.PREFS, MODE_PRIVATE);
 
         try {
             String json = prefs.getString(intent.getAction(), null);
@@ -80,13 +77,9 @@ public abstract class AlarmReceiver extends BroadcastReceiver {
         svc.putExtra("candle_time", UserSettings.getTimestamp(candleTime));
 
         try {
-            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-                UserSettings.log("AlarmReceiver::showEarly: Starting early service");
-                EarlyService.clearCode(requestCode);
-                context.startForegroundService(svc);
-            } else {
-                context.startService(svc);
-            }
+            UserSettings.log("AlarmReceiver::showEarly: Starting early service");
+            EarlyService.clearCode(requestCode);
+            context.startForegroundService(svc);
         } catch (Exception e) {
             UserSettings.log("AlarmReceiver::showEarly: exception " + e);
         }
@@ -113,13 +106,9 @@ public abstract class AlarmReceiver extends BroadcastReceiver {
         svc.putExtra("candle_time", UserSettings.getTimestamp(candleTime));
 
         try {
-            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-                UserSettings.log("AlarmReceiver::showFinal: " + event + " reqcode=" + requestCode);
-                AlarmService.clearCode(requestCode);
-                context.startForegroundService(svc);
-            } else {
-                context.startService(svc);
-            }
+            UserSettings.log("AlarmReceiver::showFinal: " + event + " reqcode=" + requestCode);
+            AlarmService.clearCode(requestCode);
+            context.startForegroundService(svc);
         } catch (Exception e) {
             UserSettings.log("AlarmReceiver::showFinal: exception " + e);
         }
